@@ -281,7 +281,7 @@
     $('#modalBody').innerHTML = html;
     onModalClose = onClose || null;
     const m = modal();
-    if (!m.open) { try { m.showModal(); } catch (e) { m.setAttribute('open', ''); } }
+    if (!m.open) { document.documentElement.classList.add('modal-open'); try { m.showModal(); } catch (e) { m.setAttribute('open', ''); } }
     $('#modalBody').scrollTop = 0;
   }
   function setModal(html) { $('#modalBody').innerHTML = html; }
@@ -290,6 +290,7 @@
     stopCamera();
     const m = modal();
     if (m.open) { try { m.close(); } catch (e) { m.removeAttribute('open'); } }
+    document.documentElement.classList.remove('modal-open');
   }
   const mHead = title => `<div class="m-head"><h2>${title}</h2><button class="m-close" data-act="closeModal" aria-label="Cerrar">×</button></div>`;
   function confirmBox(title, text, okLabel, onOk, danger = true) {
@@ -1383,7 +1384,12 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
       console.error(e);
       html = `<div class="card empty"><div class="big">😵</div>Algo ha fallado al mostrar esta sección.<div class="li-sub mt">${esc(e.message)}</div></div>`;
     }
+    // Mantener la posición: que nada se mueva al interactuar
+    const y = window.scrollY;
+    const chipX = $$('#view .chips').map(c => c.scrollLeft);
     $('#view').innerHTML = html;
+    $$('#view .chips').forEach((c, i) => { if (chipX[i]) c.scrollLeft = chipX[i]; });
+    if (window.scrollY !== y) window.scrollTo(0, y);
     $$('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === UI.view));
     renderFloating();
   }
