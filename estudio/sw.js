@@ -1,6 +1,6 @@
 /* Service worker: modo offline y notificaciones */
-const CACHE = 'focus-v3';
-const ASSETS = ['./', './index.html', './css/styles.css', './js/data.js', './js/local-ai.js', './js/app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './js/vendor/zxing.min.js'];
+const CACHE = 'estudio-v1';
+const ASSETS = ['./', './index.html', './css/styles.css', './js/data.js', './js/local-ai.js', './js/app.js', './manifest.webmanifest', './icons/favicon-32.png', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

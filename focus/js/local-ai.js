@@ -3,15 +3,13 @@
    actividades, rutinas y registrar comidas. */
 'use strict';
 window.FocusLocalAI = function createLocalAI(api) {
-  const { norm, slug, pad, r0, r1, clamp, num, uid, DAYS, DAYS_S, CATS, MEALS } = api;
+  const { norm, r0, r1, clamp, num, uid, DAYS, DAYS_S } = api;
 
   // ---------- utilidades de lenguaje ----------
   const WORD_NUM = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, medio: 0.5, media: 0.5 };
   const DAY_RE = '(lunes|martes|miercoles|jueves|viernes|sabado|domingo)';
   const DAY_IDX = { lunes: 0, martes: 1, miercoles: 2, jueves: 3, viernes: 4, sabado: 5, domingo: 6 };
   const has = (t, re) => re.test(t);
-  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  const fmtMin = m => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
   const listJoin = arr => arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' y ' + arr[arr.length - 1];
 
   function parseDays(t) {
@@ -34,84 +32,9 @@ window.FocusLocalAI = function createLocalAI(api) {
   }
 
   // Convierte "17", "17:30", "5 y media" + contexto (tarde/noche) a minutos
-  function toMinutes(h, m, ctx) {
-    h = +h; m = +(m || 0);
-    if (/noche/.test(ctx) && h >= 7 && h < 12) h += 12;
-    else if (/tarde/.test(ctx) && h < 12) h += 12;
-    else if (!/manana|madrugada/.test(ctx) && h >= 1 && h <= 6) h += 12;
-    return clamp(h, 0, 23) * 60 + clamp(m, 0, 59);
-  }
-  function parseTimes(t) {
-    const H = '(\\d{1,2})(?:[:.h](\\d{2}))?(?: y (media|cuarto))?';
-    const frac = x => x === 'media' ? 30 : x === 'cuarto' ? 15 : 0;
-    const ctxOf = idx => t.slice(idx, idx + 40);
-    let m = t.match(new RegExp(`(?:de|desde)(?: las?)? ${H} (?:a|hasta)(?: las?)? ${H}`));
-    if (m) {
-      const ctx = ctxOf(m.index);
-      let s = toMinutes(m[1], m[2] || frac(m[3]), ctx), e = toMinutes(m[4], m[5] || frac(m[6]), ctx);
-      if (e <= s && e + 720 > s && e < 720) e += 720;
-      return { start: s, end: Math.min(e, 1439) };
-    }
-    m = t.match(new RegExp(`a las? ${H}`));
-    if (!m) return null;
-    const start = toMinutes(m[1], m[2] || frac(m[3]), ctxOf(m.index));
-    return { start, end: Math.min(start + parseDuration(t), 1439) };
-  }
-  function parseDuration(t) {
-    if (has(t, /hora y media/)) return 90;
-    if (has(t, /media hora/)) return 30;
-    let m = t.match(/(\d+(?:[.,]\d+)?|una|dos|tres|cuatro|cinco)\s*(?:h\b|horas?)/);
-    if (m) return r0((WORD_NUM[m[1]] || num(m[1])) * 60);
-    m = t.match(/(\d+)\s*(?:min|minutos?)/);
-    if (m) return +m[1];
-    return 60;
-  }
 
-  const CAT_WORDS = [
-    ['estudio', /estudi|repas|deberes|examen|tarea|apuntes|clase|selectividad|ejercicios de/],
-    ['gym', /\bgym\b|gimnasio|entrenar|entreno|pesas|crossfit/],
-    ['comida', /\bcomer\b|comida|cenar|\bcena\b|desayun|merend|almorz/],
-    ['descanso', /dormir|siesta|descansar/],
-    ['trabajo', /trabaj|reunion|oficina/],
-    ['ocio', /jugar|play|serie|pelicula|salir|amigos|quedar|videojuego/],
-    ['rutina', /ducha|meditar|leer|pasear|caminar|correr|aseo|limpiar|ordenar|estirar/]
-  ];
-  const catOf = t => (CAT_WORDS.find(([, re]) => re.test(t)) || ['otro'])[0];
-  function titleFrom(raw, cat) {
-    const low = raw.toLowerCase();
-    const m = low.match(/(?:estudiar|repasar|leer|hacer|practicar|ir a(?:l)?|tengo|clase de|examen de)\s+([a-záéíóúñü][a-záéíóúñü ]{2,40}?)(?=\s+(?:el|los|las|de|a|desde|entre|todos|cada|hoy|mañana|por|durante|\d)|[,.!?]|$)/);
-    if (m) {
-      const verb = low.match(/estudiar|repasar|leer|practicar/);
-      const what = m[1].trim().replace(/^(a las?|a|el|la|los|las|de|del|un|una|unos|unas)(\s+|$)/, '').trim();
-      if (what && !/^(las?|los|el)$/.test(what)) return cap((verb ? verb[0] + ' ' : '') + what);
-      if (verb) return cap(verb[0]);
-    }
-    const lone = raw.toLowerCase().match(/\b(leer|meditar|pasear|correr|caminar|estudiar|repasar|dormir|ducharme|cocinar|limpiar|ordenar|estirar)\b/);
-    if (lone) return cap(lone[1] === 'ducharme' ? 'ducha' : lone[1]);
-    const subj = api.S().subjects.find(s => norm(raw).includes(norm(s.name)));
-    if (subj) return `Estudiar ${subj.name}`;
-    return CATS[cat].label;
-  }
 
   // ---------- intenciones ----------
-  function addActivity(raw, t) {
-    const times = parseTimes(t);
-    if (!times) return null;
-    let days = parseDays(t);
-    if (!days.length) days = [api.dow()];
-    const cat = catOf(t);
-    const title = titleFrom(raw, cat);
-    const S = api.S();
-    const subj = cat === 'estudio' ? S.subjects.find(s => norm(raw).includes(norm(s.name))) : null;
-    const remindM = t.match(/(?:avisa|avisame|recuerdame|aviso)[^\d]*(\d+)\s*min/);
-    const b = { id: uid(), title, cat, start: fmtMin(times.start), end: fmtMin(times.end), days, remind: remindM ? +remindM[1] : 10, notes: '', routineId: '', subjectId: subj ? subj.id : '' };
-    S.blocks.push(b); api.save();
-    const dayTxt = days.length === 7 ? 'todos los días' : days.length === 5 && days.every((d, i) => d === i) ? 'de lunes a viernes' : listJoin(days.map(d => DAYS[d].toLowerCase()));
-    return {
-      text: `¡Hecho! He añadido **${CATS[cat].icon} ${title}** de **${b.start} a ${b.end}** (${dayTxt}). Te avisaré ${b.remind} min antes.\n\nPuedes cambiarlo cuando quieras desde la pestaña **Plan**.`,
-      actions: [`Actividad: ${title} (${b.start}–${b.end}, ${days.map(d => DAYS_S[d]).join(' ')})`]
-    };
-  }
 
   const GROUP_WORDS = [
     [/pecho|pectoral/, ['Pecho']],
@@ -236,30 +159,6 @@ window.FocusLocalAI = function createLocalAI(api) {
     };
   }
 
-  function planFor(day) {
-    const S = api.S(), k = api.dkey();
-    const blocks = api.blocksFor(day);
-    const isToday = day === api.dow();
-    if (!blocks.length) return `No tienes nada planificado el **${DAYS[day].toLowerCase()}**. Puedes decirme, por ejemplo: *“añade estudiar inglés el ${DAYS[day].toLowerCase()} de 17 a 19”*.`;
-    const nm = api.nowMin(), done = isToday ? (S.done[k] || []) : [];
-    const shown = isToday ? blocks.filter(b => !done.includes(b.id) && api.toMin(b.start) + api.durMin(b) > nm) : blocks;
-    const lines = (shown.length ? shown : blocks).map(b => {
-      const s = api.toMin(b.start), e = s + api.durMin(b);
-      const now = isToday && nm >= s && nm < e;
-      const mark = done.includes(b.id) ? '✅' : now ? '👉' : isToday && e <= nm ? '⏺️' : '▫️';
-      return `- ${mark} **${b.start}–${b.end}** ${CATS[b.cat]?.icon || ''} ${b.title}${now ? ' **(ahora)**' : ''}`;
-    });
-    let head = isToday ? `**Hoy, ${DAYS[day].toLowerCase()}**` : `**El ${DAYS[day].toLowerCase()}**`;
-    if (isToday) {
-      const cur = blocks.find(b => { const s = api.toMin(b.start); return nm >= s && nm < s + api.durMin(b); });
-      const next = blocks.find(b => api.toMin(b.start) > nm);
-      head += cur ? ` — ahora toca **${cur.title}** hasta las ${cur.end}.` : next ? ` — lo siguiente es **${next.title}** a las ${next.start} (en ${api.fmtH(api.toMin(next.start) - nm)}).` : ' — ya has terminado el plan de hoy. 🎉';
-      const left = blocks.filter(b => !done.includes(b.id) && api.toMin(b.start) + api.durMin(b) > nm).length;
-      head += left ? ` Te quedan ${left} ${left === 1 ? 'actividad' : 'actividades'}:` : '';
-      if (!left) return head;
-    }
-    return `${head}\n\n${lines.join('\n')}`;
-  }
 
   const PROTEIN_FOODS = ['Pechuga de pollo a la plancha', 'Atún al natural (lata)', 'Skyr / yogur proteico', 'Huevo entero', 'Queso fresco batido 0%', 'Proteína whey en polvo', 'Lentejas cocidas', 'Pechuga de pavo (fiambre)'];
   function macros() {
@@ -326,6 +225,13 @@ window.FocusLocalAI = function createLocalAI(api) {
     return `Aquí tienes ${count} ideas de ${label}${wantProtein ? ' altas en proteína' : ''}:\n\n${ideas.slice(0, count).map((x, i) => `${i + 1}. **${x.name}** — ${r0(x.n.kcal)} kcal · P ${r0(x.n.p)} g · C ${r0(x.n.c)} g · G ${r0(x.n.f)} g\n   ${x.ings.map(([n, g]) => `${n} ${g} g`).join(', ')}`).join('\n')}\n\n${leftK > 0 ? `Hoy te quedan **${r0(leftK)} kcal** y **${r0(Math.max(0, leftP))} g de proteína**.` : ''} Si te comes una, dime por ejemplo *“he cenado ${norm(ideas[0].ings[0][0]).split(' ')[0]} ${ideas[0].ings[0][1]} g”* y lo apunto.`;
   }
 
+  function routineFor(day) {
+    const S = api.S(), EX = api.EX();
+    const rs = S.routines.filter(r => (r.days || []).includes(day));
+    const when = day === api.dow() ? 'Hoy' : `El ${DAYS[day].toLowerCase()}`;
+    if (!rs.length) return `${when} no tienes ninguna rutina asignada. ¿Te creo una? Por ejemplo: *“créame una rutina de espalda y bíceps para el ${DAYS[day].toLowerCase()}”*.`;
+    return rs.map(r => `${when} toca **${r.name}**${r.time ? ' a las ' + r.time : ''}:\n\n${r.exercises.map(e => `- ${EX[e.exId]?.name || '?'} — ${EX[e.exId]?.type === 'cardio' ? e.reps + ' min' : `${e.sets} × ${e.reps}${e.kg ? ' · ' + e.kg + ' kg' : ''}`}`).join('\n')}`).join('\n\n') + '\n\nEmpiézala desde **Hoy** o **Gym**. 💪';
+  }
   function progress() {
     const S = api.S(), EX = api.EX();
     const ws = [...S.workouts].sort((a, b) => b.start - a.start);
@@ -333,18 +239,9 @@ window.FocusLocalAI = function createLocalAI(api) {
     const wk = api.weekStart(), month = api.dkey().slice(0, 7);
     const last = ws[0];
     const prs = Object.keys(EX).map(id => ({ id, pr: api.exPR(id) })).filter(x => x.pr).sort((a, b) => b.pr.rm - a.pr.rm).slice(0, 6);
-    return `**Tu progreso en el gym**\n- Esta semana: **${ws.filter(w => w.date >= wk).length}** entrenos\n- Este mes: **${ws.filter(w => w.date.startsWith(month)).length}** entrenos\n- Último: **${last.name}** (${api.fmtDate(last.date, { weekday: 'long', day: 'numeric', month: 'short' })}), ${last.exercises.reduce((a, e) => a + e.sets.length, 0)} series y ${r0(api.workoutVolume(last))} kg de volumen\n${prs.length ? `\n**Tus mejores marcas:**\n${prs.map(x => `- ${EX[x.id].name}: **${x.pr.kg} kg × ${x.pr.reps}** (1RM estimado ${x.pr.rm} kg)`).join('\n')}` : ''}`;
+    return `**Tu progreso en el gym**\n- Esta semana: **${ws.filter(w => w.date >= wk).length}** ${ws.filter(w => w.date >= wk).length === 1 ? 'entreno' : 'entrenos'}\n- Este mes: **${ws.filter(w => w.date.startsWith(month)).length}** ${ws.filter(w => w.date.startsWith(month)).length === 1 ? 'entreno' : 'entrenos'}\n- Último: **${last.name}** (${api.fmtDate(last.date, { weekday: 'long', day: 'numeric', month: 'short' })}), ${last.exercises.reduce((a, e) => a + e.sets.length, 0)} series y ${r0(api.workoutVolume(last))} kg de volumen\n${prs.length ? `\n**Tus mejores marcas:**\n${prs.map(x => `- ${EX[x.id].name}: **${x.pr.kg} kg × ${x.pr.reps}** (1RM estimado ${x.pr.rm} kg)`).join('\n')}` : ''}`;
   }
 
-  function study() {
-    const S = api.S(), k = api.dkey(), wk = api.weekStart();
-    const today = S.studyLog.filter(l => l.date === k).reduce((a, l) => a + l.min, 0);
-    const week = S.studyLog.filter(l => l.date >= wk);
-    const total = week.reduce((a, l) => a + l.min, 0);
-    const rows = S.subjects.map(s => { const m = week.filter(l => l.subjectId === s.id).reduce((a, l) => a + l.min, 0); return `- ${s.name}: **${api.fmtH(m)}**${s.goalH ? ` de ${s.goalH} h (${r0(m / (s.goalH * 60) * 100)}%)` : ''}`; });
-    const behind = S.subjects.filter(s => s.goalH && week.filter(l => l.subjectId === s.id).reduce((a, l) => a + l.min, 0) < s.goalH * 60 * 0.5);
-    return `**Tu estudio**\n- Hoy: **${api.fmtH(today)}**\n- Esta semana: **${api.fmtH(total)}**\n${rows.length ? '\n' + rows.join('\n') : ''}${behind.length ? `\n\nVas por detrás en **${listJoin(behind.map(s => s.name))}**. ¿Quieres que te añada un bloque? Dime por ejemplo *“añade estudiar ${behind[0].name.toLowerCase()} mañana de 17 a 19”*.` : ''}`;
-  }
 
   function exerciseInfo(t) {
     const EX = api.EX();
@@ -397,9 +294,6 @@ window.FocusLocalAI = function createLocalAI(api) {
     [['cuantos dias', 'cuantas veces', 'frecuencia', 'dias a la semana'], () => '**Días de entreno**:\n- 2–3 días: full body.\n- 4 días: torso / pierna × 2.\n- 5–6 días: empuje / tirón / pierna.\n\nLo importante es la constancia semanal. Puedo crearte las rutinas: *“créame una rutina full body para lunes y jueves”*.'],
     [['cardio', 'correr', 'aerobico', 'hiit'], () => '**Cardio**:\n- Mejora el corazón, la recuperación y ayuda a gastar calorías.\n- 150 min/semana de cardio moderado (o 75 de intenso) es la recomendación general.\n- Si quieres ganar músculo, hazlo después de las pesas o en otro momento del día.\n- El HIIT ahorra tiempo, pero cansa más: 1–2 sesiones/semana bastan.'],
     [['dormir', 'sueno', 'insomnio', 'descansar mejor'], () => '**Para dormir mejor**:\n- **7–9 h** y a horas parecidas cada día (también el finde).\n- Sin pantallas 30–60 min antes; luz tenue.\n- Nada de cafeína 6–8 h antes de dormir.\n- Habitación fresca, oscura y silenciosa.\n\nAñade un bloque de **Descanso** en el Plan para que te avise de ir a dormir.'],
-    [['pomodoro'], () => '**Técnica Pomodoro**: 25 min de concentración total + 5 min de descanso. Cada 4 ciclos, un descanso largo de 15–30 min.\n\nEn la pestaña **Estudio** tienes el temporizador (también 50/10 y 90/15) y registra tus horas por asignatura.'],
-    [['estudiar mejor', 'tecnicas de estudio', 'memorizar', 'concentrar', 'concentracion', 'recordar', 'como estudiar', 'aprender'], () => '**Técnicas de estudio que funcionan**:\n1. **Recuerdo activo**: cierra los apuntes y explica o escribe lo que recuerdas.\n2. **Repaso espaciado**: repasa al día siguiente, a los 3 días y a la semana.\n3. **Practica con ejercicios y exámenes** antiguos.\n4. **Bloques sin distracciones** (móvil fuera) con Pomodoro.\n5. **Intercala** temas o asignaturas.\n\nSubrayar y releer es lo que menos rinde.'],
-    [['examen', 'examenes', 'selectividad', 'evau', 'pau'], () => '**Plan para un examen**:\n- Divide el temario en bloques y repártelos en los días que quedan.\n- Deja los **2 últimos días** solo para repasar y hacer exámenes.\n- Duerme bien la noche anterior: el sueño fija la memoria.\n\nDime por ejemplo *“añade estudiar historia de lunes a viernes de 17 a 19”* y te lo pongo en el horario.'],
     [['procrastin', 'motivacion', 'pereza', 'no tengo ganas', 'constancia', 'disciplina', 'motivar'], () => '**Contra la procrastinación**:\n- **Regla de los 2 minutos**: empieza solo 2 minutos; lo difícil es arrancar.\n- Divide la tarea en pasos pequeños y concretos.\n- Ten el plan **con hora**: en FOCUS cada bloque te avisa.\n- Quita el móvil de la vista.\n- Celebra lo hecho: marca ✓ tus actividades en **Hoy**.\n\nLa motivación va y viene; los hábitos se quedan. 💪'],
     [['estres', 'ansiedad', 'agobio', 'agobiado', 'nervios', 'estresado'], () => 'Siento que estés así. Algunas cosas que ayudan:\n- **Respiración 4-7-8**: inspira 4 s, aguanta 7 s, suelta 8 s (×4).\n- Muévete: un paseo de 10–20 min baja mucho el estrés.\n- Escribe lo que te preocupa y el siguiente paso pequeño de cada cosa.\n- Duerme y come a horas regulares.\n\nSi la ansiedad no se va o te desborda, habla con alguien de confianza o con un profesional. Y si alguna vez te sientes al límite, en España tienes el **024** (gratis, 24 h) y el **112** para urgencias.'],
     [['ayuno'], () => 'El **ayuno intermitente** (p. ej. 16:8) no quema más grasa por sí mismo: funciona si te ayuda a comer menos en total.\n\nSi te resulta cómodo, adelante; si te da ansiedad o atracones, no lo uses. Mantén la proteína alta.'],
@@ -410,7 +304,6 @@ window.FocusLocalAI = function createLocalAI(api) {
     [['alcohol', 'cerveza', 'cubata', 'beber alcohol'], () => 'El **alcohol** empeora el sueño, la recuperación y la síntesis de músculo, y aporta 7 kcal/g. Cuanto menos, mejor; si bebes, que sea poco y no cerca del entreno.'],
     [['lesion', 'me duele', 'dolor de', 'me he hecho dano', 'tendinitis'], () => 'Si tienes **dolor o una lesión**, para el ejercicio que lo provoca y **consulta con un médico o fisioterapeuta**. Mientras tanto puedes entrenar otras zonas que no duelan. No entrenes con dolor agudo.'],
     [['respirar', 'respiracion'], () => 'En pesas: **coge aire antes de bajar** el peso y **suéltalo al empujar o tirar** (la parte difícil). En cargas pesadas, mantener el aire con el abdomen apretado da estabilidad.'],
-    [['organizar', 'organizarme', 'productividad', 'productivo', 'habito', 'habitos', 'planificar mi'], () => '**Para organizarte mejor**:\n1. Planifica la semana el domingo en **Plan** (estudio, gym, comidas, descanso).\n2. Lo importante, a primera hora.\n3. Bloques de tiempo con hora de inicio y fin.\n4. Deja huecos libres para imprevistos.\n5. Revisa cada noche qué has hecho (✓ en **Hoy**).\n\nTambién puedo añadirte bloques: *“añade gym de lunes a viernes a las 18:30”*.'],
     [['cafe', 'cafeina'], () => 'La **cafeína** (3–6 mg/kg, unos 1–2 cafés) 30–60 min antes de entrenar o estudiar mejora el rendimiento y la concentración. Evítala 6–8 h antes de dormir.'],
     [['imc', 'peso ideal', 'indice de masa'], () => { const p = api.S().profile; const imc = num(p.weight) / Math.pow(num(p.height) / 100, 2); return `Con ${p.weight} kg y ${p.height} cm tu **IMC es ${r1(imc)}** (${imc < 18.5 ? 'bajo peso' : imc < 25 ? 'normal' : imc < 30 ? 'sobrepeso' : 'obesidad'}).\n\nOjo: el IMC no distingue músculo de grasa; si entrenas fuerza, el perímetro de cintura o el % de grasa son mejores referencias. Puedes cambiar tus datos en **Comidas → Objetivos**.`; }],
     [['cuantas calorias', 'calorias necesito', 'mantenimiento', 'metabolismo', 'gasto calorico'], () => { const p = api.S().profile; const bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'h' ? 5 : -161); const tdee = bmr * p.activity; return `Según tus datos (${p.weight} kg, ${p.height} cm, ${p.age} años):\n- Metabolismo basal: **${r0(bmr)} kcal**\n- Gasto diario estimado: **${r0(tdee)} kcal** (mantenimiento)\n- Para perder grasa: ~**${r0(tdee * 0.8)} kcal**\n- Para ganar músculo: ~**${r0(tdee * 1.1)} kcal**\n\nTu objetivo actual en FOCUS es **${api.S().goals.kcal} kcal**. Ajústalo en **Comidas → Objetivos**.`; }],
@@ -427,7 +320,7 @@ window.FocusLocalAI = function createLocalAI(api) {
     return best ? best() : null;
   }
 
-  const HELP = () => `¡Hola${api.S().settings.name ? ', ' + api.S().settings.name : ''}! 👋 Soy tu asistente de FOCUS y funciono **sin internet**. Puedo:\n\n- 📅 **Tu plan**: *“¿qué me toca ahora?”*, *“¿qué tengo el martes?”*\n- ➕ **Añadir actividades**: *“añade estudiar inglés mañana de 17 a 19”*\n- 🏋️ **Crear rutinas**: *“créame una rutina de pierna para el lunes”*\n- 🍽️ **Apuntar comidas**: *“he comido 200 g de arroz y una pechuga de pollo”*\n- 📊 **Macros**: *“¿cómo voy de proteína?”*, *“¿qué ceno?”*\n- 📈 **Progreso y estudio**: *“mis récords”*, *“¿cuánto he estudiado?”*\n- 💡 **Dudas** de gym, nutrición, estudio, sueño y hábitos\n- 🧮 **Cálculos**: *“cuánto es 15% de 80”*`;
+  const HELP = () => `¡Hola${api.S().settings.name ? ', ' + api.S().settings.name : ''}! 👋 Soy tu asistente de gym y nutrición y funciono **sin internet**. Puedo:\n\n- 📅 **Tu plan**: *“¿qué me toca ahora?”*, *“¿qué tengo el martes?”*\n- ➕ **Añadir actividades**: *“añade estudiar inglés mañana de 17 a 19”*\n- 🏋️ **Crear rutinas**: *“créame una rutina de pierna para el lunes”*\n- 🍽️ **Apuntar comidas**: *“he comido 200 g de arroz y una pechuga de pollo”*\n- 📊 **Macros**: *“¿cómo voy de proteína?”*, *“¿qué ceno?”*\n- 📈 **Progreso y estudio**: *“mis récords”*, *“¿cuánto he estudiado?”*\n- 💡 **Dudas** de gym, nutrición, estudio, sueño y hábitos\n- 🧮 **Cálculos**: *“cuánto es 15% de 80”*`;
 
   // ---------- respuesta principal ----------
   function reply(raw) {
@@ -444,21 +337,15 @@ window.FocusLocalAI = function createLocalAI(api) {
     const foodVerb = /(he comido|me he comido|he cenado|he desayunado|he merendado|he almorzado|he tomado|me he tomado)/.test(t);
     const addVerb = /\b(anade|anademe|pon|ponme|agenda|programa|recuerdame|planifica|organiza|organizame|apunta|apuntame|registra|mete|crea|quiero)\b/.test(t);
     if (foodVerb) { const r = logFood(raw, t); if (r) return r; }
-    if (addVerb || wantsCreate) {
-      const a = addActivity(raw, t);
-      if (a) return a;
-      if (/\b(apunta|registra|anade)\b/.test(t)) { const r = logFood(raw, t); if (r) return r; }
-      if (/(horas? de estudio|estudiar|estudio)/.test(t)) return { text: 'Dime también **cuándo**, por ejemplo: *“añade estudiar matemáticas mañana de 17 a 19”* o *“de lunes a viernes a las 16:00 durante 2 horas”*.' };
-    }
+    if (addVerb && /\b(apunta|apuntame|registra|anade|anademe|mete)\b/.test(t)) { const r = logFood(raw, t); if (r) return r; }
 
-    if (/(que (me )?toca|que tengo|que hago|mi dia|mi horario|mi agenda|mi plan|que me queda|siguiente actividad|lo siguiente|planes? (de|para))/.test(t)) {
+    if (/(que (me )?toca|que entreno|que tengo|entreno de|rutina de hoy|mi rutina|que hago hoy)/.test(t)) {
       const days = parseDays(t);
-      return { text: planFor(days.length ? days[0] : api.dow()) };
+      return { text: routineFor(days.length ? days[0] : api.dow()) };
     }
     if (/(macro|calori|kcal|como voy|me queda|cuanto he comido|cuanta proteina llevo|proteina llevo|proteina hoy)/.test(t) && !/necesito|cuantas calorias/.test(t)) return { text: macros() };
     if (/(que (como|ceno|desayuno|meriendo|puedo comer|puedo cenar)|ideas? de|receta|menu|que me hago de|dame \d* ?(desayunos|cenas|comidas|meriendas|snacks)|(desayunos|cenas|comidas|meriendas|snacks) (alt|con|rico|sano))/.test(t)) return { text: mealIdeas(t) };
     if (/(record|marcas|progreso|1rm|cuanto levanto|ultimo entreno|mis entrenos|como voy en el gym|volumen)/.test(t)) return { text: progress() };
-    if (/(cuanto he estudiado|horas de estudio|mi estudio|tiempo de estudio|como voy (con|en) (el )?estudio)/.test(t)) return { text: study() };
 
     if (/(ejercicios? (para|de)|que (ejercicios|maquinas)|como entreno|como trabajo)/.test(t)) { const r = exercisesFor(t); if (r) return { text: r }; }
     if (/(como se hace|como hago|tecnica|que musculos?|como hacer|para que sirve|explicame)/.test(t) || t.split(' ').length <= 6) { const r = exerciseInfo(t); if (r) return { text: r }; }
@@ -469,7 +356,7 @@ window.FocusLocalAI = function createLocalAI(api) {
 
     const r = exerciseInfo(t);
     if (r) return { text: r };
-    return { text: `Uy, eso no lo sé responder en el modo sin conexión 🤔.\n\nPrueba a preguntarme de otra forma, o pídeme algo como:\n- *“¿Qué me toca ahora?”*\n- *“Créame una rutina de espalda para hoy”*\n- *“He desayunado 2 huevos y una tostada”*\n- *“¿Cuántas series hago por músculo?”*` };
+    return { text: `Uy, eso no lo sé responder en el modo sin conexión 🤔.\n\nPrueba a preguntarme de otra forma, o pídeme algo como:\n- *“¿Qué me toca hoy?”*\n- *“Créame una rutina de espalda para hoy”*\n- *“He desayunado 2 huevos y una tostada”*\n- *“¿Cuántas series hago por músculo?”*` };
   }
 
   return { reply };

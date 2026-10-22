@@ -357,3 +357,19 @@ dialog#modal::backdrop { background: rgba(5, 7, 12, .6); backdrop-filter: blur(3
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* --- Modo concentración (bloqueo) --- */
+html.locked, html.locked body { overflow: hidden; }
+.lock { position: fixed; inset: 0; z-index: 300; background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 22%, var(--bg)) 0%, var(--bg) 60%); display: flex; align-items: center; justify-content: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + var(--safe-b)); overflow-y: auto; overscroll-behavior: contain; touch-action: manipulation; }
+.lock-in { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.lock-subj { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; justify-content: center; }
+.lock-ring { margin: 6px 0; }
+.lock-quote { color: var(--muted); font-style: italic; margin: 0; max-width: 320px; }
+.lock-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 10px; }
+.hold { position: relative; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; padding: 14px; }
+.hold span { position: relative; z-index: 1; }
+.hold::before { content: ""; position: absolute; inset: 0; width: 0; background: rgba(255, 92, 122, .35); }
+.hold.holding::before { width: 100%; transition: width var(--hold, 5s) linear; }
+.guide { padding-left: 22px; margin: 6px 0 0; }
+.guide li { margin-bottom: 14px; }
+.guide li::marker { font-weight: 800; color: var(--accent); }
