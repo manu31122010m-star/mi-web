@@ -26,9 +26,10 @@ App de gimnasio con tu logo como icono en la pantalla de inicio, inspirada en ap
 - **76 ejercicios** (todas las máquinas de tu gimnasio + peso libre) con **animación** del movimiento sobre la máquina, músculos que trabaja resaltados, mapa muscular delante/detrás, pasos de técnica y errores comunes.
 - **Rutinas** propias por día de la semana: series, repeticiones objetivo, descanso y notas por ejercicio. Plantillas opcionales (empuje, tirón, pierna, torso, glúteo, full body).
 - **Entreno en vivo**: cronómetro, valores de la sesión anterior, serie de calentamiento/drop/fallo, descanso automático con sonido y vibración, pantalla siempre encendida y aviso de récords.
-- **Inicio**: semana y racha, rutina de hoy, **recuperación muscular** y series por grupo muscular.
+- **Inicio**: semana y racha y rutina de hoy.
+- **GymBro**: asistente sin conexión que crea rutinas y planes semanales, te dice qué entrenar hoy según tu historial, explica la técnica, da alternativas, analiza tu progreso, calcula el 1RM y resuelve dudas (series, descanso, proteína, creatina, agujetas, definir o ganar músculo).
 - **Historial y progreso**: calendario, volumen semanal, 1RM estimado por ejercicio, récords y peso corporal.
-- **Perfil**: material de tu gimnasio (filtro “Solo mi material”), descanso por defecto y copia de seguridad.
+- **Perfil**: objetivo semanal, descanso por defecto, sonido/vibración y copia de seguridad.
 
 ## Uso
 

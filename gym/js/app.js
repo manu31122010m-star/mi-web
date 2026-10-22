@@ -27,8 +27,7 @@
   // ---------- estado ----------
   const fresh = () => ({
     v: 1, profile: { name: '', goal: 4, rest: 90, sound: true, vibrate: true },
-    routines: [], workouts: [], live: null, custom: [], bw: [], fav: [],
-    equip: Object.fromEntries(Object.keys(D.EQUIP).map(k => [k, true]))
+    routines: [], workouts: [], live: null, custom: [], bw: [], fav: [], chat: []
   });
   let S;
   try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
@@ -41,10 +40,9 @@
   const indexEx = () => { D.EXERCISES.forEach(e => { EX[e.id] = e; }); S.custom.forEach(e => { EX[e.id] = e; }); };
   indexEx();
   const exOf = id => EX[id] || { id, n: 'Ejercicio eliminado', g: '', a: 'generic', e: [], p: [], s: [], t: 'r', steps: [], errs: [] };
-  const exAvail = e => !e.e.length || e.e.some(k => S.equip[k] !== false);
 
-  const UI = { tab: (location.hash.slice(1) || 'hoy').split('/')[0], sheets: [], libQ: '', libG: 'Todos', libMine: false, libFav: false, histTab: 'entrenos', calMonth: null, liveOpen: false, progEx: '' };
-  if (!['hoy', 'rutinas', 'ejercicios', 'historial', 'perfil'].includes(UI.tab)) UI.tab = 'hoy';
+  const UI = { tab: (location.hash.slice(1) || 'hoy').split('/')[0], sheets: [], libQ: '', libG: 'Todos', libFav: false, histTab: 'entrenos', calMonth: null, liveOpen: false, progEx: '' };
+  if (!['hoy', 'rutinas', 'ejercicios', 'gymbro', 'historial', 'perfil'].includes(UI.tab)) UI.tab = 'hoy';
 
   // ---------- utilidades de historial ----------
   const doneSets = it => (it.sets || []).filter(s => s.done);
@@ -67,36 +65,6 @@
   const maxKg = (exId, before = Infinity) => sessionsOf(exId).filter(x => x.date < before).reduce((m, { it }) => Math.max(m, ...doneSets(it).map(s => num(s.kg))), 0);
   const workoutVolume = w => w.items.reduce((v, it) => exOf(it.ex).t === 'r' ? v + doneSets(it).reduce((a, s) => a + num(s.kg) * num(s.reps), 0) : v, 0);
   const workoutSets = w => w.items.reduce((n, it) => n + doneSets(it).length, 0);
-
-  const MUSCLE_GROUP = { chest: 'Pecho', lats: 'Espalda', upperback: 'Espalda', lowerback: 'Espalda', traps: 'Hombros', delts: 'Hombros', rear: 'Hombros', biceps: 'Bíceps', forearms: 'Bíceps', triceps: 'Tríceps', quads: 'Cuádriceps', hamstrings: 'Isquios', glutes: 'Glúteos', abductors: 'Glúteos', adductors: 'Glúteos', calves: 'Gemelos', abs: 'Core', obliques: 'Core' };
-  const VOL_GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Cuádriceps', 'Isquios', 'Glúteos', 'Gemelos', 'Core'];
-  function weeklySets(from = weekStart()) {
-    const out = Object.fromEntries(VOL_GROUPS.map(g => [g, 0]));
-    for (const w of S.workouts) {
-      if (w.start < from || w.start >= from + 7 * 864e5) continue;
-      for (const it of w.items) {
-        const e = exOf(it.ex), n = doneSets(it).length;
-        if (!n || e.t === 'c') continue;
-        new Set(e.p.map(m => MUSCLE_GROUP[m])).forEach(g => { out[g] += n; });
-        new Set(e.s.map(m => MUSCLE_GROUP[m])).forEach(g => { if (!e.p.some(m => MUSCLE_GROUP[m] === g)) out[g] += n / 2; });
-      }
-    }
-    return out;
-  }
-  function recovery() {
-    const now = Date.now(), lvl = {};
-    for (const w of S.workouts) {
-      const h = (now - (w.end || w.start)) / 36e5;
-      for (const it of w.items) {
-        if (!doneSets(it).length) continue;
-        const e = exOf(it.ex);
-        const L = h < 24 ? 3 : h < 48 ? 2 : h < 72 ? 1 : 0;
-        e.p.forEach(m => { lvl[m] = Math.max(lvl[m] ?? 0, L); });
-        e.s.forEach(m => { lvl[m] = Math.max(lvl[m] ?? 0, Math.max(0, L - 1)); });
-      }
-    }
-    return lvl;
-  }
 
   // ---------- mapa muscular (vista frontal y posterior) ----------
   const shift = (x0, list) => list.map(sh => sh[0] === 'p' ? ['p', sh[1].replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (m, x, y) => `${+x + x0} ${y}`)] : [sh[0], sh[1] + x0, ...sh.slice(2)]);
@@ -188,17 +156,12 @@
     let streak = 0;
     for (let w = wk; ; w -= 7 * 864e5) { const has = S.workouts.some(x => x.start >= w && x.start < w + 7 * 864e5); if (has) streak++; else if (w !== wk) break; if (streak > 200) break; }
     const tr = todayRoutines();
-    const lvl = recovery();
-    const col = ['var(--rec)', 'var(--f1)', 'var(--f2)', 'var(--f3)'];
-    const ready = Object.keys(D.MUSCLES).filter(m => (lvl[m] ?? 0) === 0 && lvl[m] !== undefined);
-    const ws = weeklySets();
     const last = S.workouts.slice().sort((a, b) => b.start - a.start)[0];
     const pct = Math.min(1, weekW.length / (p.goal || 1));
     return `
       <header class="hero">
         <img src="icons/icon-192.png" alt="" class="avatar">
         <div class="grow"><div class="muted small">${esc(fmtDate(now))}</div><h1>${p.name ? 'Hola, ' + esc(p.name) : '¡A entrenar!'}</h1></div>
-        ${installBtn()}
       </header>
       ${!p.name ? `<div class="card"><b>Bienvenido 👋</b><p class="muted small">¿Cómo te llamas? Así personalizo la app.</p><div class="row"><input id="nameIn" placeholder="Tu nombre" maxlength="24"><button class="btn primary" data-act="saveName">Guardar</button></div></div>` : ''}
       ${S.live ? `<div class="card live-card" data-act="openLive"><div class="row between"><div><div class="small accent">● Entreno en curso</div><b>${esc(S.live.name)}</b></div><span class="timer" data-clock>${fmtClock(Date.now() - S.live.start)}</span></div></div>` : ''}
@@ -211,21 +174,9 @@
       <div class="sec">Hoy · ${DAYS[dow()]}</div>
       ${tr.length ? tr.map(routineCard).join('') : `<div class="card empty"><div class="emoji">🛌</div><div>No tienes rutina asignada para hoy.</div>
         <div class="row center wrap mt8"><button class="btn primary" data-act="startEmpty">▶ Entreno libre</button>${S.routines.length ? `<button class="btn" data-act="tab" data-tab="rutinas">Elegir rutina</button>` : `<button class="btn" data-act="newRoutine">+ Crear rutina</button>`}</div></div>`}
-      <div class="sec">Recuperación muscular</div>
-      <div class="card">
-        ${bodyMap(m => lvl[m] === undefined ? 'var(--muscle)' : col[lvl[m]], 'Recuperación muscular')}
-        <div class="legend"><span><i style="background:var(--f3)"></i>Hoy</span><span><i style="background:var(--f2)"></i>~48 h</span><span><i style="background:var(--f1)"></i>~72 h</span><span><i style="background:var(--rec)"></i>Recuperado</span></div>
-        ${ready.length ? `<div class="small muted mt8">Listos para entrenar: ${ready.map(m => D.MUSCLES[m]).join(', ')}</div>` : !S.workouts.length ? '<div class="small muted mt8">Se irá coloreando según los músculos que entrenes.</div>' : ''}
-      </div>
-      <div class="sec">Series por grupo esta semana</div>
-      <div class="card">${VOL_GROUPS.map(g => { const v = ws[g]; return `<div class="vbar"><span>${g}</span><div class="track"><i style="width:${Math.min(100, v / 20 * 100)}%" class="${v >= 10 ? 'ok' : ''}"></i><b class="mark"></b></div><em>${r1(v)}</em></div>`; }).join('')}
-        <div class="small dim mt8">La línea marca 10 series: entre 10 y 20 por semana suele ser un buen objetivo para crecer.</div></div>
+      <div class="card bro-card" data-act="askBro" data-q="¿Qué entreno hoy?"><img src="icons/icon-192.png" alt="" class="avatar sm"><div class="grow"><b>GymBro</b><div class="small muted">Pregúntame qué entrenar, técnica, rutinas, dieta…</div></div><span class="btn sm primary">Hablar</span></div>
       ${last ? `<div class="sec">Último entreno</div>${workoutRow(last)}` : ''}`;
   }
-
-  let deferredInstall = null;
-  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  const installBtn = () => !standalone() ? `<button class="btn sm" data-act="install">📲 Instalar</button>` : '';
 
   function viewRutinas() {
     return `<div class="row between"><h1 class="title">Rutinas</h1><button class="btn" data-act="templates">📋 Plantillas</button></div>
@@ -237,12 +188,12 @@
 
   function libFilter(list) {
     const q = norm(UI.libQ);
-    return list.filter(e => (UI.libG === 'Todos' || e.g === UI.libG) && (!q || norm(e.n + ' ' + e.g + ' ' + e.p.map(m => D.MUSCLES[m]).join(' ')).includes(q)) && (!UI.libMine || exAvail(e)) && (!UI.libFav || S.fav.includes(e.id)));
+    return list.filter(e => (UI.libG === 'Todos' || e.g === UI.libG) && (!q || norm(e.n + ' ' + e.g + ' ' + e.p.map(m => D.MUSCLES[m]).join(' ')).includes(q)) && (!UI.libFav || S.fav.includes(e.id)));
   }
   function libControls() {
     return `<input type="search" placeholder="🔍 Buscar ejercicio o músculo…" value="${esc(UI.libQ)}" data-in="libQ" id="libQ" autocomplete="off">
       <div class="chips">${['Todos', ...D.GROUPS].map(g => `<button class="chip ${g === UI.libG ? 'on' : ''}" data-act="libG" data-g="${esc(g)}">${g === 'Todos' ? 'Todos' : D.GROUP_ICON[g] + ' ' + esc(g)}</button>`).join('')}</div>
-      <div class="chips"><button class="chip ${UI.libMine ? 'on' : ''}" data-act="libMine">🏠 Solo mi material</button><button class="chip ${UI.libFav ? 'on' : ''}" data-act="libFav">★ Favoritos</button></div>`;
+      <div class="chips"><button class="chip ${UI.libFav ? 'on' : ''}" data-act="libFav">★ Favoritos</button></div>`;
   }
   function exGrid(list, pick) {
     if (!list.length) return '<div class="card empty">No hay ejercicios con ese filtro.</div>';
@@ -320,16 +271,56 @@
         <label class="li"><div class="grow">Sonido al acabar el descanso</div><input type="checkbox" class="sw" data-in="sound" ${p.sound ? 'checked' : ''}></label>
         <label class="li"><div class="grow">Vibración</div><input type="checkbox" class="sw" data-in="vibrate" ${p.vibrate ? 'checked' : ''}></label>
       </div>
-      <div class="sec">Material de mi gimnasio</div>
-      <div class="card"><div class="small muted">Desmarca lo que no tengas y usa “Solo mi material” en Ejercicios.</div>
-        ${Object.entries(D.EQUIP).map(([k, [n, ic]]) => `<label class="li"><span class="eqi">${ic}</span><div class="grow">${esc(n)}</div><input type="checkbox" class="sw" data-in="equip" data-k="${k}" ${S.equip[k] !== false ? 'checked' : ''}></label>`).join('')}</div>
-      <div class="sec">Instalar en el móvil</div>
-      <div class="card small"><p><b>Android (Chrome):</b> menú ⋮ → <i>Instalar aplicación</i> o <i>Añadir a pantalla de inicio</i>.</p><p><b>iPhone (Safari):</b> botón Compartir → <i>Añadir a pantalla de inicio</i>.</p><p class="muted">Aparecerá con tu logo como icono y funciona sin conexión.</p>${!standalone() ? '<button class="btn primary block" data-act="install">📲 Instalar ahora</button>' : '<div class="accent">✓ Ya está instalada</div>'}</div>
       <div class="sec">Copia de seguridad</div>
       <div class="card"><div class="small muted">Tus datos solo se guardan en este dispositivo. Exporta una copia de vez en cuando.</div>
         <div class="row mt8"><button class="btn grow" data-act="export">⬇️ Exportar</button><label class="btn grow">⬆️ Importar<input type="file" accept="application/json,.json" id="importIn" hidden></label></div>
         <button class="btn danger block mt8" data-act="reset">Borrar todos los datos</button></div>
       <div class="small dim center mt8">Hecho para organizar tus entrenos · v1</div>`;
+  }
+
+  // ---------- GymBro ----------
+  const GB = window.createGymBro({ EX, state: () => S, exOf, sessionsOf, bestOf, maxKg, e1rm, doneSets, num, fmtKg, fmtDate, DAYS, dow, uid, COLORS });
+  function broMsg(m, i) {
+    const used = m.used || [];
+    return `<div class="msg ${m.from}">${m.from === 'bot' ? '<img src="icons/icon-192.png" alt="" class="msg-av">' : ''}<div class="bubble">${m.from === 'bot' ? m.html : esc(m.text)}
+      ${(m.actions || []).length ? `<div class="msg-acts">${m.actions.map((a, k) => `<button class="chip ${used.includes(k) ? 'done' : ''}" data-act="broAct" data-m="${i}" data-a="${k}" ${used.includes(k) ? 'disabled' : ''}>${used.includes(k) ? '✓ ' : ''}${esc(a.label)}</button>`).join('')}</div>` : ''}</div></div>`;
+  }
+  function viewGymBro() {
+    if (!S.chat.length) S.chat.push({ from: 'bot', html: GB.reply('ayuda').html, actions: GB.SUGGEST });
+    return `<div class="bro-head"><img src="icons/icon-192.png" alt="" class="avatar"><div class="grow"><h1>GymBro</h1><div class="small muted">Tu compañero de gym · funciona sin conexión</div></div><button class="icon-btn" data-act="broClear" aria-label="Borrar conversación">🗑</button></div>
+      <div class="chat" id="chat">${S.chat.map(broMsg).join('')}</div>
+      <form class="bro-in" id="broForm"><div class="chips">${['¿Qué entreno hoy?', 'Rutina de pierna 1 hora', 'Plan de 4 días', '¿Cuánta proteína necesito?', 'Alternativas a la prensa', '100 kg x 5', 'Estoy estancado'].map(q => `<button type="button" class="chip" data-act="askBro" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+        <div class="row"><input id="broIn" placeholder="Pregúntale a GymBro…" autocomplete="off" enterkeyhint="send"><button class="btn primary" type="submit" aria-label="Enviar">➤</button></div></form>`;
+  }
+  function broScroll() { requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
+  function broSay(text) {
+    text = String(text || '').trim();
+    if (!text) return;
+    S.chat.push({ from: 'me', text });
+    let r;
+    try { r = GB.reply(text); } catch (e) { r = { html: 'Uy, algo ha fallado al responder. Prueba a decirlo de otra forma.', actions: [] }; }
+    S.chat.push({ from: 'bot', html: r.html, actions: r.actions });
+    if (S.chat.length > 80) S.chat = S.chat.slice(-80);
+    save();
+    if (UI.tab !== 'gymbro') { UI.tab = 'gymbro'; history.replaceState(history.state, '', '#gymbro'); }
+    renderView(); broScroll();
+  }
+  const cloneRoutine = r => Object.assign(JSON.parse(JSON.stringify(r)), { id: uid() });
+  function broAct(b) {
+    const m = S.chat[+b.dataset.m], k = +b.dataset.a, a = m && m.actions[k];
+    if (!a) return;
+    const mark = () => { m.used = [...(m.used || []), k]; save(); };
+    const p = a.payload;
+    switch (a.type) {
+      case 'ask': return broSay(p);
+      case 'openEx': return openSheet({ type: 'ex', id: p });
+      case 'startEmpty': return startWorkout('Entreno libre', [], null);
+      case 'startRoutineId': { const r = S.routines.find(x => x.id === p); if (r) startWorkout(r.name, r.items.map(it => makeItem(it.ex, it.sets, it.reps, it.rest, it.note)), r.id); return; }
+      case 'startRoutine': return startWorkout(p.name, p.items.map(it => makeItem(it.ex, it.sets, it.reps, it.rest, it.note)), null);
+      case 'saveRoutine': { const r = cloneRoutine(p); S.routines.push(r); mark(); renderView(); toast(`Rutina “${r.name}” guardada ✓`); return; }
+      case 'editRoutine': { const r = cloneRoutine(p); S.routines.push(r); mark(); save(); renderView(); openSheet({ type: 'routine', draft: JSON.parse(JSON.stringify(r)) }); return; }
+      case 'savePlan': { p.forEach(r => S.routines.push(cloneRoutine(r))); mark(); renderView(); toast(`${p.length} rutinas creadas y asignadas a sus días ✓`); return; }
+    }
   }
 
   // ---------- hojas (detalle, editor, selector…) ----------
@@ -557,7 +548,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden && S.live && UI.liveOpen) keepAwake(true); if (!document.hidden) tickRest(); });
 
   // ---------- render ----------
-  const VIEWS = { hoy: viewHoy, rutinas: viewRutinas, ejercicios: viewEjercicios, historial: viewHistorial, perfil: viewPerfil };
+  const VIEWS = { hoy: viewHoy, rutinas: viewRutinas, ejercicios: viewEjercicios, gymbro: viewGymBro, historial: viewHistorial, perfil: viewPerfil };
   function hydrate(root) {
     root.querySelectorAll('[data-anim]').forEach(el => {
       if (el.dataset.m) return;
@@ -571,6 +562,7 @@
     v.innerHTML = VIEWS[UI.tab]();
     hydrate(v);
     document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
+    document.body.classList.toggle('bro', UI.tab === 'gymbro');
   }
   function renderSheet() {
     const el = $('#sheet'), top = UI.sheets[UI.sheets.length - 1];
@@ -636,12 +628,11 @@
   // ---------- acciones ----------
   const sheetTop = () => UI.sheets[UI.sheets.length - 1];
   const ACT = {
-    tab: b => { if (b.dataset.tab === 'ejercicios' && UI.tab !== 'ejercicios') { UI.libG = 'Todos'; UI.libQ = ''; } UI.tab = b.dataset.tab; history.replaceState(history.state, '', '#' + UI.tab); renderView(); window.scrollTo(0, 0); },
+    tab: b => { if (b.dataset.tab === 'ejercicios' && UI.tab !== 'ejercicios') { UI.libG = 'Todos'; UI.libQ = ''; } UI.tab = b.dataset.tab; history.replaceState(history.state, '', '#' + UI.tab); renderView(); if (UI.tab === 'gymbro') broScroll(); else window.scrollTo(0, 0); },
+    askBro: b => broSay(b.dataset.q),
+    broAct: b => broAct(b),
+    broClear: () => { if (!confirm('¿Borrar la conversación con GymBro?')) return; S.chat = []; save(); renderView(); },
     saveName: () => { const v = $('#nameIn').value.trim(); if (v) { S.profile.name = v; save(); renderView(); } },
-    install: async () => {
-      if (deferredInstall) { deferredInstall.prompt(); await deferredInstall.userChoice.catch(() => {}); deferredInstall = null; renderView(); }
-      else alert(/iphone|ipad|ipod/i.test(navigator.userAgent) ? 'En Safari: pulsa Compartir (□↑) y luego “Añadir a pantalla de inicio”.' : 'En Chrome: menú ⋮ → “Instalar aplicación” o “Añadir a pantalla de inicio”.');
-    },
     // rutinas
     newRoutine: () => openSheet({ type: 'routine', isNew: true, draft: { id: uid(), name: '', color: COLORS[S.routines.length % COLORS.length], days: [], items: [] } }),
     editRoutine: b => { const r = S.routines.find(x => x.id === b.dataset.id); if (r) openSheet({ type: 'routine', draft: JSON.parse(JSON.stringify(r)) }); },
@@ -677,7 +668,6 @@
     startEmpty: () => startWorkout('Entreno libre', [], null),
     // biblioteca
     libG: b => { UI.libG = b.dataset.g; const box = b.closest('.sheet-body') || $('#view'); box.querySelectorAll('[data-act="libG"]').forEach(x => x.classList.toggle('on', x === b)); refreshLib(); },
-    libMine: b => { UI.libMine = !UI.libMine; b.classList.toggle('on', UI.libMine); refreshLib(); },
     libFav: b => { UI.libFav = !UI.libFav; b.classList.toggle('on', UI.libFav); refreshLib(); },
     openEx: b => openSheet({ type: 'ex', id: b.dataset.id }),
     fav: b => { const id = b.dataset.id; S.fav = S.fav.includes(id) ? S.fav.filter(x => x !== id) : [...S.fav, id]; save(); renderSheet(); },
@@ -795,7 +785,6 @@
     rest: el => { S.profile.rest = +el.value; save(); },
     sound: el => { S.profile.sound = el.checked; save(); },
     vibrate: el => { S.profile.vibrate = el.checked; save(); },
-    equip: el => { S.equip[el.dataset.k] = el.checked; save(); },
     progEx: el => { UI.progEx = el.value; renderView(); },
     rName: el => { sheetTop().draft.name = el.value; },
     rReps: el => { sheetTop().draft.items[+el.dataset.i].reps = el.value; },
@@ -824,14 +813,21 @@
     fr.readAsText(ev.target.files[0]);
     ev.target.value = '';
   });
+  document.addEventListener('submit', ev => {
+    if (ev.target.id !== 'broForm') return;
+    ev.preventDefault();
+    const inp = $('#broIn'), v = inp.value;
+    inp.value = '';
+    broSay(v);
+    const n = $('#broIn'); if (n) n.focus();
+  });
   document.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.id === 'bwIn') ACT.addBW(); if (ev.key === 'Enter' && ev.target.id === 'nameIn') ACT.saveName(); });
 
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; });
-  window.addEventListener('appinstalled', () => { deferredInstall = null; toast('¡App instalada! Búscala en tu pantalla de inicio'); renderView(); });
 
   // arranque
   history.replaceState(null, '', '#' + UI.tab);
   render();
+  if (UI.tab === 'gymbro') broScroll();
   if (S.live) toast('Tienes un entreno en curso: toca la barra para continuar');
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
