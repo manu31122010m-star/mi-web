@@ -42,13 +42,14 @@
     EX = {};
     EX_GROUPS = D.EXERCISES.map(([g]) => g);
     for (const [group, items] of D.EXERCISES) {
-      for (const [name, equip, type] of items) {
+      for (const [name, equip, type, primary, secondary, how] of items) {
         const id = slug(name);
-        EX[id] = { id, name, group, equip, type: type || 'strength' };
+        EX[id] = { id, name, group, equip, type: type || 'strength', primary: primary || [], secondary: secondary || [], how: how || '' };
       }
     }
     for (const c of S.customEx) {
-      EX[c.id] = { ...c, custom: true };
+      const [pm, sm] = D.GROUP_MUSCLES[c.group] || [[], []];
+      EX[c.id] = { primary: pm, secondary: sm, how: '', ...c, custom: true };
       if (!EX_GROUPS.includes(c.group)) EX_GROUPS.push(c.group);
     }
   }
@@ -69,16 +70,16 @@
   const KEY = 'mirutina.v1';
   function defaults() {
     return {
-      version: 1,
-      settings: { name: '', notify: true, sound: true, remind: 10, waterEvery: 0, apiKey: '', aiModel: 'claude-sonnet-5-5', theme: 'auto' },
+      version: 2,
+      settings: { name: '', notify: true, sound: true, remind: 10, theme: 'auto' },
       blocks: [], done: {},
       routines: [], workouts: [], active: null, equipment: {}, customEx: [],
-      foods: [], meals: {}, photos: {}, water: {},
+      foods: [], meals: {}, photos: {}, chat: [],
       profile: { sex: 'h', age: 20, weight: 70, height: 175, activity: 1.55, goal: 'mantener' },
-      goals: { kcal: 2500, p: 140, c: 300, f: 75, fib: 30, water: 2500 },
+      goals: { kcal: 2500, p: 140, c: 300, f: 75, fib: 30 },
       subjects: [], studyLog: [],
       timer: { mode: 'focus', running: false, endAt: 0, left: 25 * 60000, subjectId: '', focus: 25, brk: 5, long: 15, count: 0 },
-      gymTab: 'rutinas', lastWaterNotif: 0
+      gymTab: 'rutinas'
     };
   }
   let S;
@@ -89,8 +90,28 @@
     const d = defaults();
     S = { ...d, ...raw };
     for (const k of ['settings', 'goals', 'profile', 'timer']) S[k] = { ...d[k], ...(raw[k] || {}) };
-    for (const k of ['blocks', 'routines', 'workouts', 'customEx', 'foods', 'subjects', 'studyLog']) if (!Array.isArray(S[k])) S[k] = [];
-    for (const k of ['done', 'meals', 'photos', 'water', 'equipment']) if (!S[k] || typeof S[k] !== 'object') S[k] = {};
+    for (const k of ['blocks', 'routines', 'workouts', 'customEx', 'foods', 'subjects', 'studyLog', 'chat']) if (!Array.isArray(S[k])) S[k] = [];
+    for (const k of ['done', 'meals', 'photos', 'equipment']) if (!S[k] || typeof S[k] !== 'object') S[k] = {};
+    for (const r of S.routines) if (!Array.isArray(r.days)) r.days = [];
+    migrate(raw.version || 1);
+  }
+  // v2: sin rutinas de ejemplo, sin agua y sin clave de API
+  function migrate(v) {
+    if (v < 2) {
+      const sample = ['Empuje (pecho, hombro, tríceps)', 'Tirón (espalda, bíceps)', 'Pierna y core'];
+      const gone = S.routines.filter(r => sample.includes(r.name)).map(r => r.id);
+      S.routines = S.routines.filter(r => !gone.includes(r.id));
+      for (const b of S.blocks) {
+        if (gone.includes(b.routineId)) b.routineId = '';
+        if (['Gym — Empuje', 'Gym — Tirón', 'Gym — Pierna'].includes(b.title)) b.title = 'Gym';
+        if (b.title === 'Despertar, agua y aseo') b.title = 'Despertar y aseo';
+      }
+      if (S.active && gone.includes(S.active.routineId)) S.active.routineId = '';
+    }
+    delete S.water; delete S.lastWaterNotif; delete S.goals.water;
+    delete S.settings.apiKey; delete S.settings.aiModel; delete S.settings.waterEvery;
+    S.version = 2;
+    save();
   }
   let saveWarned = false;
   function save() {
@@ -102,24 +123,13 @@
 
   function seed() {
     const s = defaults();
-    const R = (name, color, list) => ({ id: uid(), name, color, exercises: list.map(([n, sets, reps, rest]) => ({ exId: slug(n), sets, reps, kg: '', rest: rest || 90 })) });
-    const push = R('Empuje (pecho, hombro, tríceps)', '#ff5c7a', [
-      ['Press de pecho sentado', 4, 10, 120], ['Press de pecho inclinado', 3, 10], ['Cruce de poleas', 3, 12, 60],
-      ['Press de hombros', 3, 10], ['Elevaciones laterales en máquina', 3, 15, 60], ['Extensión de tríceps en polea', 3, 12, 60], ['Polea alta con cuerda', 3, 12, 60]]);
-    const pull = R('Tirón (espalda, bíceps)', '#5ec8ff', [
-      ['Jalón al pecho', 4, 10, 120], ['Remo sentado en polea', 3, 10], ['Remo con pecho apoyado', 3, 10],
-      ['Pájaros / deltoide posterior', 3, 15, 60], ['Encogimientos para trapecio', 3, 12, 60], ['Curl de bíceps en máquina', 3, 12, 60], ['Banco Scott para bíceps', 3, 10, 60]]);
-    const legs = R('Pierna y core', '#2fd18b', [
-      ['Sentadilla Hack', 4, 8, 150], ['Prensa de piernas', 3, 10, 120], ['Extensión de cuádriceps', 3, 12],
-      ['Curl femoral tumbado', 3, 12], ['Máquina de hip thrust', 3, 10], ['Elevación de gemelos de pie', 4, 15, 60], ['Máquina de abdominales', 3, 15, 60]]);
-    s.routines = [push, pull, legs];
     const subj = [{ id: uid(), name: 'Matemáticas', color: '#8b6cff', goalH: 6 }, { id: uid(), name: 'Inglés', color: '#5ec8ff', goalH: 3 }, { id: uid(), name: 'Historia', color: '#ffb547', goalH: 3 }];
     s.subjects = subj;
     s.timer.subjectId = subj[0].id;
     const B = (title, cat, start, end, days, extra = {}) => ({ id: uid(), title, cat, start, end, days, remind: 10, notes: '', ...extra });
     const wk = [0, 1, 2, 3, 4];
     s.blocks = [
-      B('Despertar, agua y aseo', 'rutina', '07:00', '07:20', wk, { remind: 0 }),
+      B('Despertar y aseo', 'rutina', '07:00', '07:20', wk, { remind: 0 }),
       B('Desayuno', 'comida', '07:20', '07:45', wk),
       B('Estudio — bloque 1', 'estudio', '08:30', '10:30', wk, { subjectId: subj[0].id }),
       B('Media mañana', 'comida', '10:30', '10:50', wk, { remind: 5 }),
@@ -127,9 +137,7 @@
       B('Comida', 'comida', '14:00', '14:45', [0, 1, 2, 3, 4, 5, 6]),
       B('Estudio — repaso', 'estudio', '16:00', '17:30', [0, 1, 2, 3], { subjectId: subj[2].id }),
       B('Merienda', 'comida', '17:45', '18:00', wk, { remind: 5 }),
-      B('Gym — Empuje', 'gym', '18:30', '20:00', [0, 3], { routineId: push.id, remind: 30 }),
-      B('Gym — Tirón', 'gym', '18:30', '20:00', [1, 4], { routineId: pull.id, remind: 30 }),
-      B('Gym — Pierna', 'gym', '18:30', '20:00', [2], { routineId: legs.id, remind: 30 }),
+      B('Gym', 'gym', '18:30', '20:00', wk, { remind: 30 }),
       B('Cena', 'comida', '21:00', '21:40', [0, 1, 2, 3, 4, 5, 6]),
       B('Preparar mañana y desconectar', 'rutina', '22:30', '23:00', [6, 0, 1, 2, 3], { notes: 'Mochila, ropa del gym y pantallas fuera.' }),
       B('Desayuno tranquilo', 'comida', '10:00', '10:30', [5, 6]),
@@ -140,7 +148,7 @@
   }
 
   // ---------- UI runtime ----------
-  const UI = { view: 'hoy', planDay: dow(), foodDate: dkey(), libGroup: 'Todos', libQ: '', onlyAvail: false };
+  const UI = { chatDraft: '', view: 'hoy', planDay: dow(), foodDate: dkey(), libGroup: 'Todos', libQ: '', onlyAvail: false };
   let REST = null; // {endAt, total}
   let lastDay = dkey();
 
@@ -200,6 +208,31 @@
     render();
   }
 
+  // ---------- IA (Claude a través de claude.ai) ----------
+  let SAMPLE = null, SAMPLE_LIMITS = null;
+  const aiImages = () => !!(SAMPLE && SAMPLE_LIMITS && SAMPLE_LIMITS.images);
+  function initAI() {
+    const done = ok => { aiState = ok ? 'ready' : 'none'; if (UI.view === 'asistente') render(); if (AF && AF.tab === 'foto') renderAF(); };
+    if (!window.claude || typeof window.claude.use !== 'function') { aiState = 'none'; return; }
+    window.claude.use('sample').then(async fn => {
+      if (!fn) return done(false);
+      SAMPLE = fn;
+      try { SAMPLE_LIMITS = await fn.limits(); } catch (e) { SAMPLE_LIMITS = null; }
+      done(true);
+    }).catch(() => { SAMPLE = null; done(false); });
+  }
+  function aiErrMsg(e) {
+    const code = e && e.code;
+    if (code === 'not_granted' || code === 'sampling_disabled' || code === 'capability_disabled' || code === 'not_declared') return 'No se ha dado permiso para usar Claude en FOCUS.';
+    if (code === 'rate_limited') return 'Has hecho muchas preguntas seguidas o has llegado a tu límite de uso. Prueba en un rato.';
+    if (code === 'session_expired') return 'Tu sesión de claude.ai ha caducado. Vuelve a iniciar sesión.';
+    if (code === 'image_rejected' || code === 'images_unavailable') return 'No se pudo enviar esa imagen. Prueba con otra foto.';
+    if (code === 'refused') return 'Claude no puede responder a eso. Prueba a preguntarlo de otra forma.';
+    if (code === 'prompt_too_large') return 'La conversación es demasiado larga. Bórrala y empieza de nuevo.';
+    if (code === 'invalid_json') return 'No se pudo interpretar la respuesta. Inténtalo otra vez.';
+    return 'No se pudo conectar con el asistente. Inténtalo de nuevo.';
+  }
+
   // ---------- recordatorios ----------
   let notified = new Set();
   try { notified = new Set(JSON.parse(sessionStorage.getItem('mr.notified') || '[]')); } catch (e) { notified = new Set(); }
@@ -226,12 +259,6 @@
         markNotified(key2);
         notify(`Ahora: ${b.title}`, `${cat.icon} ${cat.label} · hasta las ${b.end}`, b.id);
       }
-    }
-    const every = num(S.settings.waterEvery);
-    if (every > 0 && nm >= 540 && nm <= 1320 && Date.now() - (S.lastWaterNotif || 0) >= every * 3600000) {
-      S.lastWaterNotif = Date.now(); save();
-      const w = S.water[k] || 0;
-      notify('💧 Hora de beber agua', `Llevas ${w} ml de ${S.goals.water} ml.`, 'water');
     }
   }
 
@@ -309,7 +336,7 @@
     const cur = blocks.find(b => isCurrent(b, nm) && !done.includes(b.id));
     const next = blocks.find(b => toMin(b.start) > nm);
     const tot = dayTotals(k);
-    const water = S.water[k] || 0;
+    const wkWorkouts = S.workouts.filter(w => w.date >= weekStart()).length;
     const studyMin = S.studyLog.filter(l => l.date === k).reduce((a, l) => a + l.min, 0);
     const pctDone = blocks.length ? done.filter(id => blocks.some(b => b.id === id)).length / blocks.length : 0;
     const hello = nm < 720 ? 'Buenos días' : nm < 1260 ? 'Buenas tardes' : 'Buenas noches';
@@ -339,7 +366,7 @@
       <div class="stats">
         <div class="stat"><b>${r0(pctDone * 100)}%</b><span>Plan</span></div>
         <div class="stat"><b>${r0(tot.kcal)}</b><span>kcal</span></div>
-        <div class="stat"><b>${r1(water / 1000)} L</b><span>Agua</span></div>
+        <div class="stat"><b>${wkWorkouts}</b><span>Entrenos sem.</span></div>
         <div class="stat"><b>${fmtH(studyMin).replace(' min', 'm').replace(' h', 'h')}</b><span>Estudio</span></div>
       </div>
 
@@ -352,11 +379,11 @@
             ${meter('Grasas', tot.f, S.goals.f, 'var(--f)')}
           </div>
         </div>
-        <div class="row mt between">
-          <div class="row"><span style="font-size:20px">💧</span><span><b>${water}</b> <span class="muted">/ ${S.goals.water} ml</span></span></div>
-          <div class="row"><button class="btn sm" data-act="water" data-ml="-250">−</button><button class="btn sm primary" data-act="water" data-ml="250">+250 ml</button></div>
-        </div>
       </div>
+
+      <button class="card flat row" data-act="go" data-v="asistente" style="width:100%;text-align:left;cursor:pointer">
+        <span style="font-size:24px">✨</span><div class="grow"><b>Tu asistente personal</b><div class="li-sub">Pregúntale lo que quieras: entrenos, comidas, estudio, organización…</div></div><span class="dim">›</span>
+      </button>
 
       <div class="row between" style="margin:22px 4px 10px"><div class="sec-title" style="margin:0">Tu día · ${DAYS[dow()]}</div><button class="link" data-act="newBlock" data-day="${dow()}">+ Añadir</button></div>
       <div class="tl">${blocks.length ? blocks.map(b => tlItem(b, done.includes(b.id), cur && cur.id === b.id)).join('') : `<div class="card empty"><div class="big">🗓️</div>Aún no hay actividades para hoy.<div class="mt"><button class="btn primary" data-act="newBlock" data-day="${dow()}">Planificar hoy</button></div></div>`}</div>
@@ -377,7 +404,7 @@
   }
   function blockAction(b, big = false) {
     const cls = big ? 'btn sm mt' : 'btn sm';
-    if (b.cat === 'gym') return `<button class="${cls}" data-act="startWorkout" data-id="${b.routineId || ''}">▶ Entrenar</button>`;
+    if (b.cat === 'gym') return `<button class="${cls}" data-act="startWorkout" data-id="${b.routineId || todayRoutines()[0]?.id || ''}">▶ Entrenar</button>`;
     if (b.cat === 'comida') return `<button class="${cls}" data-act="addFoodFromBlock" data-start="${b.start}">+ Comida</button>`;
     if (b.cat === 'estudio') return `<button class="${cls}" data-act="studyFromBlock" data-sub="${b.subjectId || ''}">▶ Estudiar</button>`;
     return '';
@@ -525,25 +552,89 @@
     const body = tab === 'biblioteca' ? gymLibrary() : tab === 'material' ? gymEquipment() : tab === 'historial' ? gymHistory() : gymRoutines();
     return `<div class="seg">${tabs.map(([k, l]) => `<button class="${k === tab ? 'on' : ''}" data-act="gymTab" data-tab="${k}">${l}</button>`).join('')}</div>${body}`;
   }
+  const todayRoutines = (day = dow()) => S.routines.filter(r => (r.days || []).includes(day));
+  function routineCard(r) {
+    const sets = r.exercises.reduce((a, e) => a + num(e.sets), 0);
+    const mins = r.exercises.reduce((a, e) => a + (EX[e.exId]?.type === 'cardio' ? num(e.reps) : num(e.sets) * (0.75 + num(e.rest) / 60)), 0);
+    const prim = [...new Set(r.exercises.flatMap(e => EX[e.exId]?.primary || []))];
+    return `<div class="card" style="border-left:4px solid ${esc(r.color || 'var(--accent)')}">
+      <div class="row"><div class="grow"><h3>${esc(r.name)}</h3><small>${r.exercises.length} ejercicios · ${sets} series · ~${r0(mins)} min</small>
+        <div class="li-sub">${(r.days || []).length ? (r.days.length === 7 ? 'Todos los días' : [...r.days].sort().map(d => DAYS[d]).join(', ')) : 'Sin día asignado'}</div></div>
+        ${bodyMap({ primary: prim, secondary: [] }, 'sm')}</div>
+      <div class="li-sub mt">${r.exercises.slice(0, 5).map(e => esc(EX[e.exId]?.name || '?')).join(' · ')}${r.exercises.length > 5 ? ' …' : ''}</div>
+      <div class="row mt"><button class="btn primary sm grow" data-act="startWorkout" data-id="${r.id}">▶ Empezar</button><button class="btn sm" data-act="editRoutine" data-id="${r.id}">Editar</button></div>
+    </div>`;
+  }
   function gymRoutines() {
-    const wk = weekStart();
+    const wk = weekStart(), today = dow();
     const thisWeek = S.workouts.filter(w => w.date >= wk).length;
+    const tr = todayRoutines();
+    const unassigned = S.routines.filter(r => !(r.days || []).length);
     return `
       <div class="card hero"><div style="position:relative;z-index:1" class="row between">
         <div><div class="muted">Esta semana</div><h2>${thisWeek} ${thisWeek === 1 ? 'entreno' : 'entrenos'} 💪</h2></div>
         <button class="btn" data-act="startWorkout" data-id="">▶ Entreno libre</button>
       </div></div>
-      <div class="row between" style="margin:18px 4px 10px"><div class="sec-title" style="margin:0">Mis rutinas</div><button class="link" data-act="newRoutine">+ Nueva</button></div>
-      ${S.routines.length ? S.routines.map(r => {
-        const sets = r.exercises.reduce((a, e) => a + num(e.sets), 0);
-        const mins = r.exercises.reduce((a, e) => a + (EX[e.exId]?.type === 'cardio' ? num(e.reps) : num(e.sets) * (0.75 + num(e.rest) / 60)), 0);
-        return `<div class="card" style="border-left:4px solid ${esc(r.color || 'var(--accent)')}">
-          <div class="row between"><div class="grow"><h3>${esc(r.name)}</h3><small>${r.exercises.length} ejercicios · ${sets} series · ~${r0(mins)} min</small></div></div>
-          <div class="li-sub mt">${r.exercises.slice(0, 5).map(e => esc(EX[e.exId]?.name || '?')).join(' · ')}${r.exercises.length > 5 ? ' …' : ''}</div>
-          <div class="row mt"><button class="btn primary sm grow" data-act="startWorkout" data-id="${r.id}">▶ Empezar</button><button class="btn sm" data-act="editRoutine" data-id="${r.id}">Editar</button></div>
-        </div>`;
-      }).join('') : '<div class="card empty"><div class="big">🏋️</div>Crea tu primera rutina.</div>'}`;
+      <div class="row between" style="margin:18px 4px 10px"><div class="sec-title" style="margin:0">Hoy · ${DAYS[today]}</div>${tr.length ? `<button class="link" data-act="newRoutine" data-day="${today}">+ Otra</button>` : ''}</div>
+      ${tr.length ? tr.map(routineCard).join('') : `<div class="card empty"><div class="big">🏋️</div>No tienes rutina para hoy.
+        <div class="row mt" style="justify-content:center;flex-wrap:wrap"><button class="btn primary" data-act="newRoutine" data-day="${today}">+ Crear rutina de hoy</button><button class="btn" data-act="askAI" data-q="Créame una rutina de gym para hoy con las máquinas de mi gimnasio y guárdala para el ${DAYS[today].toLowerCase()}.">✨ Pedírsela al asistente</button></div></div>`}
+      <div class="sec-title">Tu semana</div>
+      <div class="card">${DAYS.map((d, i) => {
+        const rs = todayRoutines(i);
+        return `<div class="list-item"><b style="width:84px;flex:none${i === today ? ';color:var(--accent)' : ''}">${d}</b>
+          <div class="grow row wrap" style="gap:6px">${rs.length ? rs.map(r => `<button class="chip" data-act="editRoutine" data-id="${r.id}" style="border-color:${esc(r.color)}">${esc(r.name)}</button>`).join('') : '<span class="dim" style="font-size:13px">Descanso</span>'}</div>
+          <button class="btn sm" data-act="newRoutine" data-day="${i}" aria-label="Crear rutina para el ${d.toLowerCase()}">+</button></div>`;
+      }).join('')}</div>
+      ${unassigned.length ? `<div class="sec-title">Rutinas sin día</div>${unassigned.map(routineCard).join('')}` : ''}`;
   }
+
+  // --- mapa muscular ---
+  const MUSCLE_ES = { chest: 'Pecho', delts: 'Hombros', rear: 'Deltoides posterior', traps: 'Trapecio', lats: 'Dorsales', upperback: 'Espalda media', lowerback: 'Lumbares', biceps: 'Bíceps', triceps: 'Tríceps', forearms: 'Antebrazos', abs: 'Abdominales', obliques: 'Oblicuos', quads: 'Cuádriceps', hamstrings: 'Isquiotibiales', glutes: 'Glúteos', adductors: 'Aductores', abductors: 'Abductores', calves: 'Gemelos' };
+  // Desplaza las formas en horizontal (la vista posterior se dibuja a la derecha)
+  const mirror = (x0, list) => list.map(sh => sh[0] === 'p'
+    ? ['p', sh[1].replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (m, x, y) => `${+x + x0} ${y}`)]
+    : [sh[0], sh[1] + x0, ...sh.slice(2)]);
+  const BODY_FRONT = {
+    _base: [['c', 50, 15, 9], ['r', 45.5, 23, 9, 8, 2], ['p', 'M33 35 Q50 30 67 35 L66 95 Q50 102 34 95 Z'], ['p', 'M34 92 Q50 100 66 92 L67 110 Q50 116 33 110 Z'], ['c', 19, 94, 3.6], ['c', 81, 94, 3.6], ['c', 41.5, 149, 5], ['c', 58.5, 149, 5], ['e', 40.5, 185, 6, 3], ['e', 59.5, 185, 6, 3]],
+    delts: [['e', 31, 41, 7.5, 6.5], ['e', 69, 41, 7.5, 6.5]],
+    chest: [['p', 'M50 37 Q40 35 35 42 Q35 52 42 55 Q48 55 50 52 Z'], ['p', 'M50 37 Q60 35 65 42 Q65 52 58 55 Q52 55 50 52 Z']],
+    biceps: [['e', 26, 57, 4.8, 10], ['e', 74, 57, 4.8, 10]],
+    forearms: [['e', 22, 80, 4.2, 11], ['e', 78, 80, 4.2, 11]],
+    abs: [['r', 44, 57, 12, 31, 4]],
+    obliques: [['e', 38.5, 72, 3.8, 12], ['e', 61.5, 72, 3.8, 12]],
+    adductors: [['e', 47.3, 117, 2.6, 10], ['e', 52.7, 117, 2.6, 10]],
+    quads: [['e', 41.5, 128, 7.3, 19], ['e', 58.5, 128, 7.3, 19]],
+    calves: [['e', 40.5, 167, 5, 14], ['e', 59.5, 167, 5, 14]]
+  };
+  const BODY_BACK = {
+    _base: [['c', 50, 15, 9], ['r', 45.5, 23, 9, 8, 2], ['p', 'M33 35 Q50 30 67 35 L66 95 Q50 102 34 95 Z'], ['c', 19, 94, 3.6], ['c', 81, 94, 3.6], ['c', 41.5, 151, 5], ['c', 58.5, 151, 5], ['e', 40.5, 185, 6, 3], ['e', 59.5, 185, 6, 3]],
+    traps: [['p', 'M50 28 L39 35 L44 44 L50 56 L56 44 L61 35 Z']],
+    rear: [['e', 31, 41, 7.5, 6.5], ['e', 69, 41, 7.5, 6.5]],
+    upperback: [['p', 'M43 46 L50 57 L57 46 L59 58 L50 66 L41 58 Z']],
+    lats: [['p', 'M35 47 L41 50 L46 80 L39 75 Q34 62 35 47 Z'], ['p', 'M65 47 L59 50 L54 80 L61 75 Q66 62 65 47 Z']],
+    lowerback: [['r', 44.5, 70, 11, 21, 4]],
+    triceps: [['e', 26, 57, 4.8, 10], ['e', 74, 57, 4.8, 10]],
+    forearms: [['e', 22, 80, 4.2, 11], ['e', 78, 80, 4.2, 11]],
+    abductors: [['e', 33.5, 100, 3, 7.5], ['e', 66.5, 100, 3, 7.5]],
+    glutes: [['e', 42.5, 105, 8.5, 9], ['e', 57.5, 105, 8.5, 9]],
+    hamstrings: [['e', 41.5, 134, 7, 16], ['e', 58.5, 134, 7, 16]],
+    calves: [['e', 40.5, 166, 5.5, 12.5], ['e', 59.5, 166, 5.5, 12.5]]
+  };
+  function shapeSVG(sh, fill) {
+    if (sh[0] === 'c') return `<circle cx="${sh[1]}" cy="${sh[2]}" r="${sh[3]}" fill="${fill}"/>`;
+    if (sh[0] === 'e') return `<ellipse cx="${sh[1]}" cy="${sh[2]}" rx="${sh[3]}" ry="${sh[4]}" fill="${fill}"/>`;
+    if (sh[0] === 'r') return `<rect x="${sh[1]}" y="${sh[2]}" width="${sh[3]}" height="${sh[4]}" rx="${sh[5]}" fill="${fill}"/>`;
+    return `<path d="${sh[1]}" fill="${fill}"/>`;
+  }
+  function bodyMap(ex, cls = '') {
+    const P = new Set(ex.primary || []), Sc = new Set(ex.secondary || []);
+    const fill = m => P.has(m) ? 'var(--mp)' : Sc.has(m) ? 'var(--ms)' : 'var(--muscle)';
+    const view = (map, x0) => Object.entries(map).map(([m, list]) => mirror(x0, list).map(sh => shapeSVG(sh, m === '_base' ? 'var(--body)' : fill(m))).join('')).join('');
+    const label = [...P].map(m => MUSCLE_ES[m]).filter(Boolean).join(', ');
+    return `<svg class="body-map ${cls}" viewBox="0 0 210 192" role="img" aria-label="${esc(label ? 'Trabaja: ' + label : 'Mapa muscular')}">${view(BODY_FRONT, 0)}${view(BODY_BACK, 110)}</svg>`;
+  }
+  const muscleChips = ex => `<div class="row wrap" style="gap:6px">${(ex.primary || []).map(m => `<span class="badge mp">${MUSCLE_ES[m] || m}</span>`).join('')}${(ex.secondary || []).map(m => `<span class="badge ms">${MUSCLE_ES[m] || m}</span>`).join('')}</div>`;
+
   function gymLibrary() {
     const q = norm(UI.libQ);
     const groups = ['Todos', ...EX_GROUPS];
@@ -558,7 +649,7 @@
     if (!list.length) return '<div class="empty">No hay ejercicios con ese filtro.</div>';
     return list.map(e => {
       const pr = exPR(e.id);
-      return `<div class="list-item ${exAvail(e.id) ? '' : 'dim'}"><div class="grow" data-act="exDetail" data-id="${e.id}">
+      return `<div class="list-item ${exAvail(e.id) ? '' : 'dim'}" data-act="exDetail" data-id="${e.id}" style="cursor:pointer">${bodyMap(e, 'xs')}<div class="grow">
         <div class="li-title">${esc(e.name)}</div><div class="li-sub">${esc(e.group)} · ${esc(e.equip)}${exAvail(e.id) ? '' : ' · no disponible'}${e.custom ? ' · personalizado' : ''}</div></div>
         ${pr ? `<span class="badge">🏆 ${pr.kg} kg × ${pr.reps}</span>` : ''}</div>`;
     }).join('');
@@ -632,6 +723,10 @@
     const cardio = e.type === 'cardio';
     openModal(`${mHead(esc(e.name))}
       <div class="row wrap"><span class="badge">${esc(e.group)}</span><span class="badge">${esc(e.equip)}</span>${exAvail(id) ? '<span class="badge" style="color:var(--ok)">Disponible</span>' : '<span class="badge" style="color:var(--bad)">No disponible</span>'}</div>
+      <div class="card flat mt center">${bodyMap(e, 'lg')}<div class="row" style="justify-content:space-around;font-size:11px;color:var(--dim);margin-top:-2px"><span>Frontal</span><span>Posterior</span></div>
+        <div class="legend" style="justify-content:center"><span><i class="dot" style="background:var(--mp)"></i>Principal</span><span><i class="dot" style="background:var(--ms)"></i>Secundario</span></div></div>
+      ${muscleChips(e)}
+      ${e.how ? `<div class="sec-title">Cómo hacerlo</div><p style="margin:0 4px">${esc(e.how)}</p>` : ''}
       ${pr ? `<div class="grid2 mt"><div class="stat"><b>${pr.kg} kg × ${pr.reps}</b><span>Mejor serie</span></div><div class="stat"><b>${pr.rm} kg</b><span>1RM estimado</span></div></div>` : ''}
       <div class="sec-title">Últimas sesiones</div>
       <div class="card flat">${hist.length ? hist.map(h => `<div class="list-item"><div class="grow"><div class="li-title">${fmtDate(h.date, { weekday: 'short', day: 'numeric', month: 'short' })}</div><div class="li-sub">${setsStr(h.sets, cardio)}</div></div></div>`).join('') : '<div class="muted">Todavía no lo has registrado.</div>'}</div>
@@ -659,7 +754,10 @@
     const colors = ['#ff5c7a', '#5ec8ff', '#2fd18b', '#8b6cff', '#ffb547', '#f472b6'];
     const html = `${mHead(isNew ? 'Nueva rutina' : 'Editar rutina')}
       <label for="reName">Nombre</label><input id="reName" data-in="reName" maxlength="60" value="${esc(RED.name)}" placeholder="Ej. Torso A">
-      <div class="row mt">${colors.map(c => `<button data-act="reColor" data-c="${c}" style="width:30px;height:30px;border-radius:50%;background:${c};border:3px solid ${c === RED.color ? 'var(--text)' : 'transparent'}" aria-label="Color"></button>`).join('')}</div>
+      <label>Días de la semana</label>
+      <div class="daypick">${DAYS_S.map((d, i) => `<button class="${(RED.days || []).includes(i) ? 'on' : ''}" data-act="reDay" data-day="${i}">${d}</button>`).join('')}</div>
+      <label>Color</label>
+      <div class="row">${colors.map(c => `<button data-act="reColor" data-c="${c}" style="width:30px;height:30px;border-radius:50%;background:${c};border:3px solid ${c === RED.color ? 'var(--text)' : 'transparent'}" aria-label="Color"></button>`).join('')}</div>
       <div class="sec-title">Ejercicios (${RED.exercises.length})</div>
       ${RED.exercises.map((e, i) => {
         const ex = EX[e.exId] || { name: 'Ejercicio eliminado', type: 'strength', group: '' };
@@ -694,7 +792,7 @@
   function renderPickList() {
     const q = norm(PICK.q);
     const list = Object.values(EX).filter(e => (PICK.g === 'Todos' || e.group === PICK.g) && (!q || matches(e.name, q)));
-    $('#pkList').innerHTML = list.map(e => `<label class="pick ${exAvail(e.id) ? '' : 'na'}"><input type="checkbox" data-act="pkTgl" data-id="${e.id}" ${PICK.sel.has(e.id) ? 'checked' : ''}>
+    $('#pkList').innerHTML = list.map(e => `<label class="pick ${exAvail(e.id) ? '' : 'na'}"><input type="checkbox" data-act="pkTgl" data-id="${e.id}" ${PICK.sel.has(e.id) ? 'checked' : ''}>${bodyMap(e, 'xs')}
       <div class="grow"><div class="li-title">${esc(e.name)}</div><div class="li-sub">${esc(e.group)} · ${esc(e.equip)}${exAvail(e.id) ? '' : ' · no disponible'}</div></div></label>`).join('') || '<div class="empty">Sin resultados</div>';
     $('#pkBtn').textContent = PICK.sel.size ? `Añadir (${PICK.sel.size})` : 'Añadir';
   }
@@ -741,7 +839,7 @@
         const cardio = ex.type === 'cardio';
         const last = exHistory(e.exId, a.id)[0];
         return `<div class="ex-card">
-          <div class="row between"><div class="grow"><h3>${esc(ex.name)}</h3><div class="li-sub">${esc(ex.group)}${cardio ? '' : ` · descanso ${e.rest}s`}</div></div>
+          <div class="row between">${bodyMap(ex, 'sm')}<div class="grow" data-act="exDetail" data-id="${e.exId}" style="cursor:pointer"><h3>${esc(ex.name)}</h3><div class="li-sub">${esc(ex.group)}${cardio ? '' : ` · descanso ${e.rest}s`}</div></div>
             <div class="mini-btns"><button data-act="sxMove" data-i="${i}" data-d="-1" aria-label="Subir">↑</button><button data-act="sxMove" data-i="${i}" data-d="1" aria-label="Bajar">↓</button><button data-act="sxDel" data-i="${i}" aria-label="Quitar">✕</button></div></div>
           ${last ? `<div class="hint">Última vez (${fmtDate(last.date, { day: 'numeric', month: 'short' })}): ${setsStr(last.sets, cardio)}</div>` : ''}
           <div class="set-head"><span>#</span><span>${cardio ? 'km' : 'kg'}</span><span>${cardio ? 'min' : 'reps'}</span><span></span><span></span></div>
@@ -808,7 +906,6 @@
     const t = dayTotals(k), g = S.goals;
     const entries = S.meals[k] || [];
     const photos = S.photos[k] || [];
-    const water = S.water[k] || 0;
     const isToday = k === dkey();
     const kcalM = t.p * 4 + t.c * 4 + t.f * 9;
     const pp = kcalM ? (t.p * 4) / kcalM * 100 : 0, pc = kcalM ? (t.c * 4) / kcalM * 100 : 0, pf = kcalM ? (t.f * 9) / kcalM * 100 : 0;
@@ -849,11 +946,6 @@
         </div>`;
       }).join('')}
 
-      <div class="card">
-        <div class="row between"><h3>💧 Agua</h3><span><b>${water}</b> <span class="muted">/ ${g.water} ml</span></span></div>
-        <div class="bar mt"><i style="width:${clamp((water / (g.water || 1)) * 100, 0, 100)}%;background:var(--accent2)"></i></div>
-        <div class="row mt"><button class="btn sm" data-act="water" data-ml="-250" data-date="${k}">−250</button><button class="btn sm grow" data-act="water" data-ml="250" data-date="${k}">+ Vaso 250 ml</button><button class="btn sm grow" data-act="water" data-ml="500" data-date="${k}">+ Botella 500 ml</button></div>
-      </div>
 
       <div class="sec-title">Análisis nutricional</div>
       <div class="card">
@@ -886,8 +978,6 @@
     if (t.sug > 50) out.push(['⚠️', `Azúcares altos: ${r0(t.sug)} g (la OMS recomienda menos de 50 g de azúcares libres).`]);
     if (t.sat * 9 > t.kcal * 0.1 && t.kcal > 0) out.push(['⚠️', `Las grasas saturadas superan el 10% de las calorías (${r0(t.sat)} g).`]);
     if (t.sod > 2000) out.push(['⚠️', `Sodio elevado: ${r0(t.sod)} mg (≈ ${r1(t.sod * 2.5 / 1000)} g de sal). Límite recomendado: 2000 mg.`]);
-    const water = S.water[k] || 0;
-    out.push(water >= g.water ? ['✅', '¡Objetivo de agua cumplido!'] : ['💧', `Te faltan ${g.water - water} ml de agua.`]);
     return out;
   }
   function goalsModal() {
@@ -909,7 +999,6 @@
         <div><label for="gC">Carbohidratos (g)</label><input id="gC" type="number" inputmode="numeric" value="${g.c}"></div>
         <div><label for="gF">Grasas (g)</label><input id="gF" type="number" inputmode="numeric" value="${g.f}"></div>
         <div><label for="gFib">Fibra (g)</label><input id="gFib" type="number" inputmode="numeric" value="${g.fib}"></div>
-        <div><label for="gWater">Agua (ml)</label><input id="gWater" type="number" inputmode="numeric" step="250" value="${g.water}"></div>
       </div>
       <div class="m-foot"><button class="btn" data-act="closeModal">Cancelar</button><button class="btn primary" data-act="saveGoals">Guardar</button></div>`);
   }
@@ -923,7 +1012,7 @@
     const f = r0(w * 0.9);
     const c = Math.max(0, r0((kcal - p * 4 - f * 9) / 4));
     $('#gKcal').value = kcal; $('#gP').value = p; $('#gC').value = c; $('#gF').value = f;
-    $('#gFib').value = r0((kcal / 1000) * 14); $('#gWater').value = r0((w * 35) / 250) * 250;
+    $('#gFib').value = r0((kcal / 1000) * 14);
     $('#gRes').innerHTML = `Metabolismo basal: <b>${r0(bmr)} kcal</b> · Gasto diario: <b>${r0(tdee)} kcal</b>. Revisa los valores y pulsa Guardar.`;
     S.profile = { sex, age, weight: w, height: h, activity: act, goal };
   }
@@ -1128,7 +1217,7 @@
 
   // --- cámara: foto del plato ---
   function photoHTML() {
-    const hasKey = !!S.settings.apiKey;
+    const hasKey = aiImages();
     if (AF.photo) {
       let ai = '';
       if (AF.ai === 'loading') ai = '<div class="card flat center mt"><div class="spinner"></div><p class="li-sub">Analizando el plato…</p></div>';
@@ -1139,14 +1228,14 @@
       else if (AF.aiErr) ai = `<div class="banner warn mt">${esc(AF.aiErr)}</div>`;
       return `<div class="cam"><img src="${AF.photo}" alt="Foto del plato"></div>
         <div class="row mt"><button class="btn grow" data-act="photoRetake">↺ Otra foto</button><button class="btn grow" data-act="photoSave">💾 Guardar foto</button></div>
-        ${hasKey ? (AF.ai === 'loading' ? '' : `<button class="btn primary block mt" data-act="photoAnalyze">✨ Analizar con IA</button>`) : `<div class="banner mt"><span>✨</span><div class="grow li-sub">Para estimar alimentos y macros automáticamente desde la foto, añade tu clave de API de Claude en Ajustes. Mientras, guarda la foto y añade los alimentos con el buscador.</div></div>`}
+        ${hasKey ? (AF.ai === 'loading' ? '' : `<button class="btn primary block mt" data-act="photoAnalyze">✨ Analizar con IA</button>`) : `<div class="banner mt"><span>✨</span><div class="grow li-sub">El análisis automático de la foto funciona al abrir FOCUS desde claude.ai. Mientras, guarda la foto y añade los alimentos con el buscador.</div></div>`}
         ${ai}`;
     }
     return `${camSupported() ? `<div class="cam" id="photoCam"><video id="photoVideo" playsinline muted autoplay></video></div>
         <div class="row mt"><button class="btn primary grow" data-act="photoOpenCam" id="photoCamBtn">📷 Abrir cámara</button><button class="btn grow" data-act="photoUpload">🖼️ Galería</button></div>` :
         `<button class="btn primary block" data-act="photoUpload">📷 Hacer foto / elegir imagen</button>`}
       <input type="file" accept="image/*" capture="environment" id="photoFile" class="hidden">
-      <p class="li-sub center mt">Haz una foto a tu plato para guardarla en tu diario${S.settings.apiKey ? ' y analizar sus macros con IA' : ''}. Para productos envasados usa “Código”.</p>`;
+      <p class="li-sub center mt">Haz una foto a tu plato para guardarla en tu diario${aiImages() ? ' y analizar sus macros con IA' : ''}. Para productos envasados usa “Código”.</p>`;
   }
   async function openPhotoCam() {
     const btn = $('#photoCamBtn');
@@ -1203,18 +1292,8 @@
 {"items":[{"name":"nombre en español","grams":0,"kcal_100g":0,"protein_100g":0,"carbs_100g":0,"fat_100g":0,"fiber_100g":0,"sugar_100g":0,"satfat_100g":0,"sodium_mg_100g":0}],"note":"comentario breve sobre el plato (1 frase)"}
 Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     try {
-      const b64 = AF.photo.split(',')[1];
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': S.settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: S.settings.aiModel || 'claude-sonnet-5-5', max_tokens: 2000, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }, { type: 'text', text: prompt }] }] })
-      });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j?.error?.message || `Error ${res.status}`);
-      const txt = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
-      const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error('Respuesta no válida de la IA');
-      const data = JSON.parse(m[0]);
+      const blob = await (await fetch(AF.photo)).blob();
+      const data = await SAMPLE.json(prompt, { images: [blob] });
       if (!AF) return;
       AF.ai = (data.items || []).map(it => ({
         on: true, name: String(it.name || 'Alimento'), g: num(it.grams) || 100,
@@ -1224,7 +1303,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
       if (!AF.ai.length) { AF.ai = null; AF.aiErr = data.note || 'No se detectaron alimentos.'; }
     } catch (e) {
       if (!AF) return;
-      AF.ai = null; AF.aiErr = 'No se pudo analizar: ' + (e.message || e);
+      AF.ai = null; AF.aiErr = aiErrMsg(e);
     }
     renderAF();
   }
@@ -1329,6 +1408,218 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   }
 
   // =====================================================================
+  // VISTA: ASISTENTE
+  // =====================================================================
+  let AIRUN = null; // {ctl, text, actions}
+  let aiState = 'pending'; // pending | ready | none
+  const ASSISTANT_URL = 'https://claude.ai/artifact/1Ga5iMiBcyZrgVWbMiPF4c';
+  const SUGGESTIONS = [
+    '¿Qué me toca hacer ahora y qué me queda hoy?',
+    'Créame una rutina de pecho y tríceps para hoy',
+    '¿Cómo voy de macros hoy? ¿Qué ceno?',
+    'Organízame 3 horas de estudio mañana por la tarde',
+    'Dame 5 desayunos altos en proteína',
+    'Explícame cómo funciona la sobrecarga progresiva'
+  ];
+  function mdLite(t) {
+    const inline = x => esc(x).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+    const out = []; let list = null;
+    for (const raw of String(t).split('\n')) {
+      const line = raw.trimEnd();
+      const li = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
+      if (li) { if (!list) { list = line.trim().match(/^\d/) ? 'ol' : 'ul'; out.push(`<${list}>`); } out.push(`<li>${inline(li[1])}</li>`); continue; }
+      if (list) { out.push(`</${list}>`); list = null; }
+      const h = line.match(/^#{1,4}\s+(.*)$/);
+      if (h) out.push(`<p class="md-h">${inline(h[1])}</p>`);
+      else if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+    }
+    if (list) out.push(`</${list}>`);
+    return out.join('');
+  }
+  function viewAsistente() {
+    if (aiState !== 'ready') {
+      return aiState === 'pending'
+        ? '<div class="card center" style="padding:40px 16px"><div class="spinner"></div><p class="muted">Conectando con tu asistente…</p></div>'
+        : `<div class="card empty"><div class="big">✨</div><b>Tu asistente personal funciona dentro de claude.ai</b>
+          <p class="li-sub">Abre FOCUS desde este enlace con tu cuenta de Claude para hablar con él. No necesitas ninguna clave.</p>
+          <a class="btn primary mt" href="${ASSISTANT_URL}" target="_blank" rel="noopener">Abrir FOCUS en claude.ai</a></div>`;
+    }
+    const msgs = S.chat.map(m => m.role === 'user'
+      ? `<div class="msg user">${esc(m.content).replace(/\n/g, '<br>')}</div>`
+      : `<div class="msg ai ${m.err ? 'err' : ''}">${mdLite(m.content)}${m.actions && m.actions.length ? `<div class="ai-acts">${m.actions.map(a => `<span class="badge ok">✓ ${esc(a)}</span>`).join('')}</div>` : ''}</div>`).join('');
+    const live = AIRUN ? `<div class="msg ai" id="aiLive">${AIRUN.text ? mdLite(AIRUN.text) : '<span class="typing"><i></i><i></i><i></i></span> <span class="muted">Pensando…</span>'}</div>` : '';
+    const empty = !S.chat.length && !AIRUN ? `<div class="card hero"><div style="position:relative;z-index:1"><div class="muted">Asistente personal</div><h2>¿En qué te ayudo${S.settings.name ? ', ' + esc(S.settings.name) : ''}? ✨</h2>
+        <div class="muted mt" style="font-size:14px">Conozco tu plan, tus entrenos, tus comidas y tu estudio. Pregúntame lo que quieras y puedo añadir actividades, rutinas o comidas por ti.</div></div></div>
+      <div class="sec-title">Prueba con</div>
+      <div class="stack">${SUGGESTIONS.map(q => `<button class="btn block" style="justify-content:flex-start;white-space:normal;text-align:left" data-act="askAI" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>` : '';
+    return `${empty}<div class="chat">${msgs}${live}</div>
+      <div class="chatbar"><div class="chatbar-in">
+        <textarea id="chatIn" data-in="chatIn" rows="1" maxlength="2000" placeholder="Escribe tu pregunta…">${esc(UI.chatDraft || '')}</textarea>
+        ${AIRUN ? '<button class="btn danger" data-act="aiStop" aria-label="Parar">■</button>' : '<button class="btn primary" data-act="aiSend" aria-label="Enviar">➤</button>'}
+      </div></div>`;
+  }
+  function aiContext() {
+    const k = dkey(), nm = nowMin();
+    const done = S.done[k] || [];
+    const t = dayTotals(k);
+    const wk = weekStart();
+    const studyWeek = {};
+    for (const l of S.studyLog.filter(x => x.date >= wk)) { const n = S.subjects.find(x => x.id === l.subjectId)?.name || 'General'; studyWeek[n] = (studyWeek[n] || 0) + l.min; }
+    const avail = {};
+    for (const e of Object.values(EX)) if (exAvail(e.id)) (avail[e.group] = avail[e.group] || []).push(e.name);
+    const ctx = {
+      ahora: `${fmtDate(k)} ${pad(Math.floor(nm / 60))}:${pad(nm % 60)} (${DAYS[dow()]}, día ${dow()})`,
+      usuario: { nombre: S.settings.name || '', ...S.profile },
+      objetivos_nutricion: S.goals,
+      plan_hoy: blocksFor(dow()).map(b => `${b.start}-${b.end} ${b.title} [${CATS[b.cat]?.label}]${done.includes(b.id) ? ' (hecho)' : ''}`),
+      plan_semana: DAYS.map((d, i) => `${d}: ${blocksFor(i).map(b => `${b.start}-${b.end} ${b.title}`).join('; ') || '—'}`),
+      rutinas_gym: S.routines.map(r => ({ nombre: r.name, dias: (r.days || []).map(d => DAYS[d]), ejercicios: r.exercises.map(e => `${EX[e.exId]?.name || '?'} ${e.sets}x${e.reps}${e.kg ? ' ' + e.kg + 'kg' : ''}`) })),
+      ultimos_entrenos: [...S.workouts].sort((a, b) => b.start - a.start).slice(0, 5).map(w => ({ fecha: w.date, rutina: w.name, ejercicios: w.exercises.map(e => `${EX[e.exId]?.name || '?'}: ${setsStr(e.sets, EX[e.exId]?.type === 'cardio')}`) })),
+      comidas_hoy: { totales: { kcal: r0(t.kcal), proteina_g: r0(t.p), carbos_g: r0(t.c), grasa_g: r0(t.f), fibra_g: r0(t.fib), azucar_g: r0(t.sug), sodio_mg: r0(t.sod) }, alimentos: (S.meals[k] || []).map(e => `${mealName(e.meal)}: ${e.name} ${r0(e.g)} g`) },
+      kcal_ultimos_7_dias: [...Array(7)].map((_, i) => { const d = addDays(k, i - 6); return `${d}: ${r0(dayTotals(d).kcal)}`; }),
+      estudio_semana_min: studyWeek,
+      asignaturas: S.subjects.map(x => `${x.name} (objetivo ${x.goalH} h/sem)`),
+      ejercicios_disponibles_en_su_gym: avail
+    };
+    return JSON.stringify(ctx);
+  }
+  const AI_RULES = `Eres el asistente personal de FOCUS, la app con la que el usuario planifica su día (rutinas, estudio, gym y comidas). Habla siempre en español de España, cercano y motivador, y sé claro y práctico: respuestas breves, con listas cortas y **negritas** cuando ayuden.
+Puedes responder a CUALQUIER tipo de pregunta (estudios, deberes, entrenamiento, nutrición, recetas, organización, dudas generales…), no solo sobre la app.
+Usa los datos del usuario que tienes abajo para personalizar las respuestas. No inventes datos que no estén ahí.
+Herramientas: úsalas SOLO cuando el usuario pida crear, guardar, planificar o registrar algo (actividades del horario, rutinas de gym o comidas). Para rutinas usa EXACTAMENTE los nombres de "ejercicios_disponibles_en_su_gym". Los días van de 0 = lunes a 6 = domingo. Después de usarlas, resume en una frase lo que has guardado.
+Salud: no eres médico. Ante dolor, lesiones, síntomas o dietas extremas, recomienda consultar a un profesional.
+Datos actuales del usuario (JSON):
+`;
+  function aiTools() {
+    const groups = EX_GROUPS.slice();
+    return [
+      {
+        name: 'add_activity',
+        description: 'Añade una actividad al horario semanal del usuario (se repite cada semana los días indicados y le avisará antes). Devuelve confirmación.',
+        inputSchema: { type: 'object', properties: {
+          title: { type: 'string', description: 'Título corto, p. ej. "Estudiar Matemáticas"' },
+          category: { type: 'string', enum: Object.keys(CATS) },
+          start: { type: 'string', description: 'Hora de inicio HH:MM (24 h)' },
+          end: { type: 'string', description: 'Hora de fin HH:MM (24 h)' },
+          days: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 }, description: '0 = lunes … 6 = domingo' },
+          remind_minutes: { type: 'integer', description: 'Minutos de antelación del aviso (0 = al empezar, -1 = sin aviso). Por defecto 10.' }
+        }, required: ['title', 'category', 'start', 'end', 'days'] },
+        execute(inp) {
+          const hm = /^([01]?\d|2[0-3]):[0-5]\d$/;
+          const start = String(inp.start || ''), end = String(inp.end || '');
+          if (!hm.test(start) || !hm.test(end)) throw new Error('Horas no válidas, usa HH:MM');
+          const days = [...new Set((Array.isArray(inp.days) ? inp.days : []).map(Number).filter(d => d >= 0 && d <= 6))];
+          if (!days.length) throw new Error('Indica al menos un día');
+          const cat = CATS[inp.category] ? String(inp.category) : 'otro';
+          const fix = x => x.length === 4 ? '0' + x : x;
+          const b = { id: uid(), title: String(inp.title || CATS[cat].label).slice(0, 80), cat, start: fix(start), end: fix(end), days, remind: Number.isFinite(+inp.remind_minutes) ? clamp(r0(+inp.remind_minutes), -1, 120) : 10, notes: '', routineId: '', subjectId: '' };
+          S.blocks.push(b); save();
+          AIRUN && AIRUN.actions.push(`Actividad: ${b.title} (${b.start}–${b.end}, ${days.map(d => DAYS_S[d]).join(' ')})`);
+          return `Guardado: ${b.title} ${b.start}-${b.end} los días ${days.map(d => DAYS[d]).join(', ')}`;
+        }
+      },
+      {
+        name: 'create_routine',
+        description: 'Crea una rutina de gym para el usuario y la asigna a días de la semana. Devuelve los ejercicios guardados.',
+        inputSchema: { type: 'object', properties: {
+          name: { type: 'string' },
+          days: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 }, description: '0 = lunes … 6 = domingo' },
+          exercises: { type: 'array', items: { type: 'object', properties: {
+            name: { type: 'string', description: 'Nombre exacto de la lista de ejercicios disponibles' },
+            sets: { type: 'integer' }, reps: { type: 'integer', description: 'Repeticiones (o minutos si es cardio)' },
+            rest_seconds: { type: 'integer' }, group: { type: 'string', enum: groups, description: 'Solo si el ejercicio no está en la lista' }
+          }, required: ['name', 'sets', 'reps'] } }
+        }, required: ['name', 'days', 'exercises'] },
+        execute(inp) {
+          const list = Array.isArray(inp.exercises) ? inp.exercises : [];
+          if (!list.length) throw new Error('La rutina necesita ejercicios');
+          const days = [...new Set((Array.isArray(inp.days) ? inp.days : []).map(Number).filter(d => d >= 0 && d <= 6))];
+          const all = Object.values(EX);
+          const exercises = list.map(x => {
+            const n = String(x.name || '').trim();
+            let ex = all.find(e => norm(e.name) === norm(n)) || all.find(e => matches(e.name, n)) || all.find(e => matches(n, e.name));
+            if (!ex && n) {
+              const id = 'c-' + slug(n) + '-' + uid().slice(-4);
+              const group = groups.includes(x.group) ? x.group : 'Pecho';
+              S.customEx.push({ id, name: n.slice(0, 60), group, equip: 'Otro', type: group === 'Cardio' ? 'cardio' : 'strength' });
+              buildEx(); ex = EX[id];
+            }
+            if (!ex) return null;
+            const cardio = ex.type === 'cardio';
+            return { exId: ex.id, sets: cardio ? 1 : clamp(r0(num(x.sets)) || 3, 1, 10), reps: clamp(r0(num(x.reps)) || (cardio ? 20 : 10), 1, 200), kg: '', rest: clamp(r0(num(x.rest_seconds)) || 90, 15, 600) };
+          }).filter(Boolean);
+          const r = { id: uid(), name: String(inp.name || 'Rutina').slice(0, 60), color: ['#ff5c7a', '#5ec8ff', '#2fd18b', '#8b6cff', '#ffb547', '#f472b6'][S.routines.length % 6], days, exercises };
+          S.routines.push(r); save();
+          AIRUN && AIRUN.actions.push(`Rutina: ${r.name}${days.length ? ' (' + days.map(d => DAYS_S[d]).join(' ') + ')' : ''}`);
+          return `Rutina guardada con ${exercises.length} ejercicios: ${exercises.map(e => EX[e.exId].name).join(', ')}`;
+        }
+      },
+      {
+        name: 'log_food',
+        description: 'Registra un alimento que el usuario ha comido hoy, con sus valores por 100 g. Devuelve las calorías añadidas.',
+        inputSchema: { type: 'object', properties: {
+          meal: { type: 'string', enum: MEALS.map(m => m[0]) },
+          name: { type: 'string' }, grams: { type: 'number' },
+          kcal_100g: { type: 'number' }, protein_100g: { type: 'number' }, carbs_100g: { type: 'number' }, fat_100g: { type: 'number' },
+          fiber_100g: { type: 'number' }, sugar_100g: { type: 'number' }, satfat_100g: { type: 'number' }, sodium_mg_100g: { type: 'number' }
+        }, required: ['meal', 'name', 'grams', 'kcal_100g', 'protein_100g', 'carbs_100g', 'fat_100g'] },
+        execute(inp) {
+          const g = num(inp.grams);
+          if (!(g > 0)) throw new Error('Cantidad no válida');
+          const meal = MEALS.some(m => m[0] === inp.meal) ? inp.meal : guessMeal();
+          const food = { name: String(inp.name || 'Alimento').slice(0, 80), n: { kcal: num(inp.kcal_100g), p: num(inp.protein_100g), c: num(inp.carbs_100g), f: num(inp.fat_100g), fib: num(inp.fiber_100g), sug: num(inp.sugar_100g), sat: num(inp.satfat_100g), sod: num(inp.sodium_mg_100g) } };
+          addEntry(dkey(), meal, food, g); save();
+          AIRUN && AIRUN.actions.push(`${mealName(meal)}: ${food.name} ${r0(g)} g`);
+          return `Añadido: ${food.name} ${r0(g)} g (${r0(food.n.kcal * g / 100)} kcal) en ${mealName(meal)}`;
+        }
+      }
+    ];
+  }
+  function chatTurns(text) {
+    const hist = S.chat.filter(m => !m.err).slice(-16).map(m => ({ role: m.role, content: m.content }));
+    const turns = [{ role: 'user', content: AI_RULES + aiContext() }, { role: 'assistant', content: 'Entendido. ¿En qué te ayudo?' }, ...hist, { role: 'user', content: text }];
+    const out = [];
+    for (const t of turns) { if (out.length && out[out.length - 1].role === t.role) out[out.length - 1].content += '\n\n' + t.content; else out.push({ ...t }); }
+    return out;
+  }
+  const chatAtBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 140;
+  const chatScroll = () => window.scrollTo(0, document.documentElement.scrollHeight);
+  async function sendChat(text) {
+    text = String(text || '').trim();
+    if (!text || AIRUN || !SAMPLE) return;
+    const turns = chatTurns(text);
+    S.chat.push({ role: 'user', content: text, ts: Date.now() });
+    S.chat = S.chat.slice(-40);
+    UI.chatDraft = ''; save();
+    AIRUN = { ctl: new AbortController(), text: '', actions: [] };
+    render(); chatScroll();
+    const useTools = !!(SAMPLE_LIMITS && SAMPLE_LIMITS.tools);
+    const opts = {
+      signal: AIRUN.ctl.signal,
+      onText: ({ text: t }) => {
+        if (!AIRUN) return;
+        AIRUN.text = t;
+        const el = $('#aiLive');
+        if (el) { const stick = chatAtBottom(); el.innerHTML = mdLite(t); if (stick) chatScroll(); }
+      }
+    };
+    if (useTools) opts.tools = aiTools(); else opts.cache = false;
+    const run = AIRUN;
+    try {
+      const res = await SAMPLE(turns, opts);
+      S.chat.push({ role: 'assistant', content: res.text + (res.truncated ? '\n\n*(respuesta cortada: pídemelo por partes)*' : ''), actions: run.actions, ts: Date.now() });
+    } catch (e) {
+      if (e && e.code === 'cancelled') { if (e.text) S.chat.push({ role: 'assistant', content: e.text + '\n\n*(detenido)*', actions: run.actions, ts: Date.now() }); }
+      else S.chat.push({ role: 'assistant', content: (e && e.text && e.code !== 'refused' ? e.text + '\n\n' : '') + '⚠️ ' + aiErrMsg(e), err: true, actions: run.actions, ts: Date.now() });
+    }
+    AIRUN = null;
+    S.chat = S.chat.slice(-40);
+    save();
+    if (UI.view === 'asistente') { render(); chatScroll(); }
+    else toast('✨ Tu asistente ha respondido', 'Toca la pestaña Asistente para verlo.');
+  }
+
+  // =====================================================================
   // VISTA: AJUSTES
   // =====================================================================
   function viewAjustes() {
@@ -1348,16 +1639,8 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
         <div class="set-line"><div><b>Recordatorios</b><div class="li-sub">${permTxt}</div></div>${sw('notify', st.notify)}</div>
         ${perm === 'default' ? '<button class="btn primary block mb" data-act="askNotif">Permitir notificaciones</button>' : ''}
         <div class="set-line"><div><b>Sonido y vibración</b><div class="li-sub">Al recibir un aviso con la app abierta</div></div>${sw('sound', st.sound)}</div>
-        <div class="set-line"><div class="grow"><b>Recordatorio de agua</b><div class="li-sub">Entre las 9:00 y las 22:00</div></div>
-          <select style="width:auto" data-in="stWater">${[[0, 'No'], [1, 'Cada hora'], [2, 'Cada 2 h'], [3, 'Cada 3 h']].map(([v, l]) => `<option value="${v}" ${num(st.waterEvery) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <button class="btn block mt" data-act="testNotif">Probar aviso</button>
         <p class="li-sub mt">💡 Los avisos funcionan mientras la app está abierta o en segundo plano. Para recibirlos con el móvil bloqueado y la app cerrada, exporta el plan a tu calendario desde la pestaña Plan.</p>
-      </div>
-      <div class="sec-title">Análisis de fotos con IA (opcional)</div>
-      <div class="card">
-        <p class="li-sub" style="margin-top:0">Con una clave de API de Claude (console.anthropic.com) la app estima alimentos, gramos y macros a partir de la foto de tu plato. La clave se guarda solo en este dispositivo.</p>
-        <label for="stKey">Clave de API</label><input id="stKey" type="password" autocomplete="off" data-in="stKey" value="${esc(st.apiKey)}" placeholder="sk-ant-…">
-        <label for="stModel">Modelo</label><select id="stModel" data-in="stModel">${[['claude-sonnet-5-5', 'Claude Sonnet 5.5 (recomendado)'], ['claude-opus-5-5', 'Claude Opus 5.5 (más preciso)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (más rápido)']].map(([v, l]) => `<option value="${v}" ${st.aiModel === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       </div>
       <div class="sec-title">Datos</div>
       <div class="card">
@@ -1366,6 +1649,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
         <input type="file" accept="application/json,.json" id="importFile" class="hidden">
         <button class="btn block mt" data-act="exportICS">📅 Exportar plan a calendario</button>
         <button class="btn block mt" data-act="clearPhotos">🗑 Borrar fotos de comidas</button>
+        <button class="btn block mt" data-act="clearChat">💬 Borrar conversación del asistente</button>
         <button class="btn danger block mt" data-act="resetAll">Borrar todos los datos</button>
       </div>
       <p class="center dim" style="font-size:12px">FOCUS · v1.0</p>`;
@@ -1374,7 +1658,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   // =====================================================================
   // RENDER
   // =====================================================================
-  const VIEWS = { hoy: ['Hoy', viewHoy], plan: ['Planificador', viewPlan], gym: ['Gym', viewGym], comidas: ['Comidas', viewComidas], estudio: ['Estudio', viewEstudio], ajustes: ['Ajustes', viewAjustes] };
+  const VIEWS = { hoy: ['Hoy', viewHoy], plan: ['Planificador', viewPlan], gym: ['Gym', viewGym], comidas: ['Comidas', viewComidas], estudio: ['Estudio', viewEstudio], asistente: ['Asistente', viewAsistente], ajustes: ['Ajustes', viewAjustes] };
   function render() {
     const [title, fn] = VIEWS[UI.view] || VIEWS.hoy;
     $('#topTitle').textContent = UI.view === 'gym' && S.active ? 'Entrenando' : title;
@@ -1390,12 +1674,14 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     $('#view').innerHTML = html;
     $$('#view .chips').forEach((c, i) => { if (chipX[i]) c.scrollLeft = chipX[i]; });
     if (window.scrollY !== y) window.scrollTo(0, y);
+    document.body.classList.toggle('has-chatbar', UI.view === 'asistente' && aiState === 'ready');
     $$('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === UI.view));
     renderFloating();
   }
   function renderFloating() {
     const box = $('#floating');
     let h = '';
+    if (UI.view === 'asistente') { box.innerHTML = ''; document.body.style.paddingBottom = ''; return; }
     if (REST) {
       h += `<div class="float rest"><span style="font-size:20px">⏱️</span><div class="grow"><div style="font-size:12px;opacity:.85">Descanso</div><b style="font-size:20px" data-tick="rest">${fmtClock(REST.endAt - Date.now())}</b></div>
         <button class="btn sm" data-act="restAdd" data-s="-15">−15</button><button class="btn sm" data-act="restAdd" data-s="15">+15</button><button class="btn sm" data-act="restSkip">Saltar</button></div>`;
@@ -1438,7 +1724,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     go(el) { const v = el.dataset.v; closeModal(); if (UI.view === v) { render(); window.scrollTo(0, 0); } else location.hash = v; },
     closeModal() { closeModal(); },
     askNotif() { askNotif(); },
-    testNotif() { notify('Así se verán tus avisos', 'Ej.: En 10 min: Gym — Empuje', 'test'); },
+    testNotif() { notify('Así se verán tus avisos', 'Ej.: En 10 min: Gym', 'test'); },
 
     // hoy / plan
     toggleDone(el) {
@@ -1447,12 +1733,6 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
       const i = arr.indexOf(id);
       if (i >= 0) arr.splice(i, 1); else arr.push(id);
       save(); render();
-    },
-    water(el) {
-      const k = el.dataset.date || dkey();
-      S.water[k] = Math.max(0, (S.water[k] || 0) + parseInt(el.dataset.ml, 10));
-      save(); render();
-      if (S.water[k] >= S.goals.water && parseInt(el.dataset.ml, 10) > 0 && S.water[k] - parseInt(el.dataset.ml, 10) < S.goals.water) toast('💧 ¡Objetivo de agua cumplido!');
     },
     planDay(el) { UI.planDay = +el.dataset.day; render(); },
     newBlock(el) {
@@ -1521,7 +1801,8 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
         save(); buildEx(); render();
       });
     },
-    newRoutine() { routineEditor({ id: uid(), name: '', color: '#8b6cff', exercises: [] }); },
+    newRoutine(el) { routineEditor({ id: uid(), name: '', color: '#8b6cff', days: el.dataset.day != null ? [+el.dataset.day] : [], exercises: [] }); },
+    reDay(el) { const d = +el.dataset.day; RED.days = RED.days || []; const i = RED.days.indexOf(d); if (i >= 0) RED.days.splice(i, 1); else RED.days.push(d); el.classList.toggle('on', i < 0); },
     editRoutine(el) { const r = S.routines.find(x => x.id === el.dataset.id); if (r) routineEditor(r); },
     reColor(el) { RED.color = el.dataset.c; renderRoutineEditor(); },
     reMove(el) {
@@ -1674,7 +1955,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     calcGoals() { calcGoals(); },
     saveGoals() {
       const v = id => r0(num($('#' + id).value));
-      const g = { kcal: v('gKcal'), p: v('gP'), c: v('gC'), f: v('gF'), fib: v('gFib'), water: v('gWater') };
+      const g = { kcal: v('gKcal'), p: v('gP'), c: v('gC'), f: v('gF'), fib: v('gFib') };
       if (!(g.kcal > 0)) return toast('Las calorías deben ser mayores que 0');
       S.goals = g;
       const w = num($('#gW').value); if (w > 0) S.profile.weight = w;
@@ -1735,6 +2016,16 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     },
     delStudy(el) { S.studyLog = S.studyLog.filter(l => l.id !== el.dataset.id); save(); render(); },
 
+    // asistente
+    askAI(el) {
+      const q = el.dataset.q;
+      if (aiState === 'ready') { if (UI.view !== 'asistente') location.hash = 'asistente'; setTimeout(() => sendChat(q), 0); }
+      else { UI.chatDraft = q; location.hash = 'asistente'; }
+    },
+    aiSend() { const t = $('#chatIn'); sendChat(t ? t.value : UI.chatDraft); },
+    aiStop() { if (AIRUN) AIRUN.ctl.abort(); },
+    clearChat() { confirmBox('Borrar conversación', 'Se borrará el historial del chat con tu asistente.', 'Borrar', () => { S.chat = []; save(); render(); }); },
+
     // ajustes
     setToggle(el) { S.settings[el.dataset.k] = el.checked; save(); if (el.dataset.k === 'notify' && el.checked && 'Notification' in window && Notification.permission === 'default') askNotif(); },
     exportJSON() { download(`focus-copia-${dkey()}.json`, JSON.stringify(S), 'application/json'); toast('Copia exportada ✅'); },
@@ -1777,12 +2068,11 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     fpG() { updatePortion(); },
     aiG(el) { AF.ai[+el.dataset.i].g = num(el.value); },
     eeG(el) { const e = (S.meals[UI.foodDate] || []).find(x => x.id === el.dataset.id); if (e) updateEntryPrev(e); },
+    chatIn(el) { UI.chatDraft = el.value; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; },
     pomoSub(el) { S.timer.subjectId = el.value; save(); },
     stName(el) { S.settings.name = el.value.trim(); save(); },
     stTheme(el) { S.settings.theme = el.value; save(); applyTheme(); },
-    stWater(el) { S.settings.waterEvery = num(el.value); S.lastWaterNotif = Date.now(); save(); },
-    stKey(el) { S.settings.apiKey = el.value.trim(); save(); },
-    stModel(el) { S.settings.aiModel = el.value; save(); }
+
   };
 
   // ---------- eventos globales ----------
@@ -1806,6 +2096,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.id === 'afQ' && AF && AF.q.trim()) searchOnline();
     if (e.key === 'Enter' && e.target.id === 'scanCode') A.scanLookup();
+    if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'chatIn' && !matchMedia('(pointer:coarse)').matches) { e.preventDefault(); A.aiSend(); }
   });
   modal().addEventListener('click', e => { if (e.target === modal()) closeModal(); });
   modal().addEventListener('cancel', e => { e.preventDefault(); closeModal(); });
@@ -1821,6 +2112,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   // ---------- arranque ----------
   load();
   buildEx();
+  initAI();
   applyTheme();
   { const v = location.hash.slice(1); UI.view = VIEWS[v] ? v : 'hoy'; }
   if (S.timer.running && S.timer.endAt <= Date.now()) pomoComplete();

@@ -21,88 +21,106 @@ window.APPDATA = {
     ['snack', 'Snacks', '🍫']
   ],
 
-  // [grupo, [[nombre, equipo, tipo?]]]
+  // Músculos del mapa corporal:
+  // chest, delts, rear, traps, lats, upperback, lowerback, biceps, triceps, forearms,
+  // abs, obliques, quads, hamstrings, glutes, adductors, abductors, calves
+  // [grupo, [[nombre, equipo, tipo, principales, secundarios, cómo hacerlo]]]
   EXERCISES: [
     ['Pecho', [
-      ['Press de pecho sentado', 'Máquina'],
-      ['Press de pecho inclinado', 'Máquina'],
-      ['Contractora / Pec Deck', 'Máquina'],
-      ['Máquina de aperturas', 'Máquina'],
-      ['Cruce de poleas', 'Polea'],
-      ['Press de pecho convergente', 'Máquina']
+      ['Press de pecho sentado', 'Máquina', '', ['chest'], ['delts', 'triceps'], 'Espalda bien apoyada. Empuja hacia delante sin bloquear los codos y baja controlando hasta notar el estiramiento del pecho.'],
+      ['Press de pecho inclinado', 'Máquina', '', ['chest'], ['delts', 'triceps'], 'Ajusta el asiento para que las asas queden a la altura del pecho alto. Empuja arriba y adelante y baja lento.'],
+      ['Contractora / Pec Deck', 'Máquina', '', ['chest'], ['delts'], 'Codos ligeramente flexionados. Junta los brazos delante del pecho, aprieta 1 segundo y abre controlando.'],
+      ['Máquina de aperturas', 'Máquina', '', ['chest'], ['delts'], 'Abre en un arco amplio hasta sentir el estiramiento y cierra sin chocar las asas.'],
+      ['Cruce de poleas', 'Polea', '', ['chest'], ['delts'], 'Da un paso al frente con el torso algo inclinado. Lleva las manos hacia abajo y al centro dibujando un arco.'],
+      ['Press de pecho convergente', 'Máquina', '', ['chest'], ['delts', 'triceps'], 'Las asas se juntan al empujar: aprieta el pecho al final del recorrido y baja en 2–3 segundos.']
     ]],
     ['Espalda', [
-      ['Jalón al pecho', 'Polea'],
-      ['Jalón con agarre estrecho', 'Polea'],
-      ['Remo sentado en polea', 'Polea'],
-      ['Remo con pecho apoyado', 'Máquina'],
-      ['Remo unilateral en máquina', 'Máquina'],
-      ['Pullover en máquina', 'Máquina'],
-      ['Máquina de dominadas asistidas', 'Máquina'],
-      ['Extensiones lumbares', 'Banco']
+      ['Jalón al pecho', 'Polea', '', ['lats'], ['biceps', 'upperback', 'rear'], 'Pecho arriba. Tira de la barra hasta la clavícula llevando los codos hacia abajo y atrás; sube sin soltar la tensión.'],
+      ['Jalón con agarre estrecho', 'Polea', '', ['lats'], ['biceps', 'upperback'], 'Agarre neutro. Tira hacia la parte baja del pecho con los codos pegados al cuerpo.'],
+      ['Remo sentado en polea', 'Polea', '', ['upperback', 'lats'], ['biceps', 'rear'], 'Espalda neutra. Lleva el agarre al abdomen juntando las escápulas, sin balancear el torso.'],
+      ['Remo con pecho apoyado', 'Máquina', '', ['upperback', 'lats'], ['rear', 'biceps'], 'Pecho en el apoyo. Tira con los codos hacia atrás y aprieta las escápulas 1 segundo.'],
+      ['Remo unilateral en máquina', 'Máquina', '', ['lats', 'upperback'], ['biceps'], 'Un brazo cada vez. Tira hacia la cadera sin girar el tronco.'],
+      ['Pullover en máquina', 'Máquina', '', ['lats'], ['chest', 'triceps'], 'Brazos casi estirados. Baja la barra en arco hacia las piernas sintiendo el dorsal.'],
+      ['Máquina de dominadas asistidas', 'Máquina', '', ['lats'], ['biceps', 'upperback'], 'Más contrapeso = más ayuda. Sube hasta pasar la barbilla de la barra y baja controlado.'],
+      ['Extensiones lumbares', 'Banco', '', ['lowerback'], ['glutes', 'hamstrings'], 'Flexiona desde la cadera con la espalda neutra y sube hasta alinear el cuerpo, sin arquearte de más.']
     ]],
     ['Hombros', [
-      ['Press de hombros', 'Máquina'],
-      ['Elevaciones laterales en máquina', 'Máquina'],
-      ['Pájaros / deltoide posterior', 'Máquina'],
-      ['Polea para elevaciones laterales', 'Polea'],
-      ['Encogimientos para trapecio', 'Máquina']
+      ['Press de hombros', 'Máquina', '', ['delts'], ['triceps', 'traps'], 'Espalda apoyada. Empuja por encima de la cabeza sin arquear la zona lumbar y baja hasta la altura de las orejas.'],
+      ['Elevaciones laterales en máquina', 'Máquina', '', ['delts'], ['traps'], 'Sube los codos hacia los lados hasta la altura del hombro, sin encoger el cuello.'],
+      ['Pájaros / deltoide posterior', 'Máquina', '', ['rear'], ['upperback', 'traps'], 'Brazos casi rectos. Abre hacia atrás en arco y aprieta la parte posterior del hombro.'],
+      ['Polea para elevaciones laterales', 'Polea', '', ['delts'], [], 'Polea baja con el cable por delante del cuerpo. Eleva hacia el lado hasta el hombro y baja lento.'],
+      ['Encogimientos para trapecio', 'Máquina', '', ['traps'], ['forearms'], 'Sube los hombros hacia las orejas, pausa 1 segundo arriba y baja del todo.']
     ]],
     ['Bíceps y antebrazos', [
-      ['Curl de bíceps en máquina', 'Máquina'],
-      ['Banco Scott para bíceps', 'Banco'],
-      ['Polea baja para curl', 'Polea'],
-      ['Máquina de antebrazos', 'Máquina']
+      ['Curl de bíceps en máquina', 'Máquina', '', ['biceps'], ['forearms'], 'Brazos apoyados. Flexiona hasta arriba sin despegar los codos y baja hasta estirar.'],
+      ['Banco Scott para bíceps', 'Banco', '', ['biceps'], ['forearms'], 'Axilas pegadas al banco. Baja casi hasta estirar y sube sin rebotar.'],
+      ['Polea baja para curl', 'Polea', '', ['biceps'], ['forearms'], 'Codos fijos a los lados. Sube la barra hasta el pecho y controla la bajada.'],
+      ['Máquina de antebrazos', 'Máquina', '', ['forearms'], [], 'Mueve solo la muñeca: flexiona y extiende con el recorrido completo.']
     ]],
     ['Tríceps', [
-      ['Extensión de tríceps en polea', 'Polea'],
-      ['Máquina de fondos asistidos', 'Máquina'],
-      ['Extensión de tríceps sentado', 'Máquina'],
-      ['Polea alta con cuerda', 'Polea']
+      ['Extensión de tríceps en polea', 'Polea', '', ['triceps'], [], 'Codos pegados al cuerpo. Extiende hasta abajo y vuelve hasta 90°.'],
+      ['Máquina de fondos asistidos', 'Máquina', '', ['triceps'], ['chest', 'delts'], 'Torso erguido para centrarte en el tríceps. Baja hasta 90° de codo y empuja.'],
+      ['Extensión de tríceps sentado', 'Máquina', '', ['triceps'], [], 'Codos fijos. Extiende por completo y aprieta el tríceps al final.'],
+      ['Polea alta con cuerda', 'Polea', '', ['triceps'], [], 'Abre la cuerda hacia los lados al final del movimiento y mantén los codos quietos.']
     ]],
     ['Cuádriceps y piernas', [
-      ['Prensa de piernas', 'Máquina'],
-      ['Extensión de cuádriceps', 'Máquina'],
-      ['Sentadilla Hack', 'Máquina'],
-      ['Sentadilla en Smith / multipower', 'Smith'],
-      ['Sentadilla en máquina', 'Máquina'],
-      ['Extensión unilateral de piernas', 'Máquina']
+      ['Prensa de piernas', 'Máquina', '', ['quads'], ['glutes', 'hamstrings'], 'Pies a la anchura de los hombros. Baja hasta 90° sin despegar la zona lumbar del respaldo.'],
+      ['Extensión de cuádriceps', 'Máquina', '', ['quads'], [], 'Extiende hasta casi bloquear la rodilla, pausa 1 segundo y baja lento.'],
+      ['Sentadilla Hack', 'Máquina', '', ['quads'], ['glutes'], 'Espalda pegada al respaldo. Baja profundo con las rodillas en la dirección de las puntas de los pies.'],
+      ['Sentadilla en Smith / multipower', 'Smith', '', ['quads'], ['glutes', 'hamstrings', 'lowerback'], 'Pies algo adelantados. Baja con el pecho alto y empuja con todo el pie.'],
+      ['Sentadilla en máquina', 'Máquina', '', ['quads'], ['glutes'], 'Baja controlado hasta que los muslos queden paralelos al suelo y sube empujando con los talones.'],
+      ['Extensión unilateral de piernas', 'Máquina', '', ['quads'], [], 'Una pierna cada vez para corregir desequilibrios. Pausa arriba.']
     ]],
     ['Isquiotibiales', [
-      ['Curl femoral sentado', 'Máquina'],
-      ['Curl femoral tumbado', 'Máquina'],
-      ['Curl femoral de pie', 'Máquina'],
-      ['Peso muerto en Smith', 'Smith']
+      ['Curl femoral sentado', 'Máquina', '', ['hamstrings'], ['calves'], 'Ajusta el rodillo sobre los tobillos. Flexiona las rodillas y controla la vuelta.'],
+      ['Curl femoral tumbado', 'Máquina', '', ['hamstrings'], ['calves', 'glutes'], 'Cadera pegada al banco. Lleva los talones hacia los glúteos.'],
+      ['Curl femoral de pie', 'Máquina', '', ['hamstrings'], ['calves'], 'Una pierna cada vez, sin mover la cadera.'],
+      ['Peso muerto en Smith', 'Smith', '', ['hamstrings', 'glutes'], ['lowerback', 'upperback', 'forearms'], 'Barra pegada a las piernas. Flexiona desde la cadera con la espalda recta y sube apretando los glúteos.']
     ]],
     ['Glúteos y abductores', [
-      ['Máquina de abductores', 'Máquina'],
-      ['Máquina de aductores', 'Máquina'],
-      ['Patada de glúteo en máquina', 'Máquina'],
-      ['Polea para patada de glúteo', 'Polea'],
-      ['Máquina de hip thrust', 'Máquina'],
-      ['Prensa con énfasis en glúteos', 'Máquina']
+      ['Máquina de abductores', 'Máquina', '', ['abductors'], ['glutes'], 'Abre las piernas contra la resistencia, pausa fuera y vuelve lento.'],
+      ['Máquina de aductores', 'Máquina', '', ['adductors'], [], 'Cierra las piernas controlando, sin rebotar al abrir.'],
+      ['Patada de glúteo en máquina', 'Máquina', '', ['glutes'], ['hamstrings'], 'Empuja hacia atrás con el talón sin arquear la espalda.'],
+      ['Polea para patada de glúteo', 'Polea', '', ['glutes'], ['hamstrings'], 'Tobillera en la polea baja. Lleva la pierna hacia atrás y aprieta el glúteo.'],
+      ['Máquina de hip thrust', 'Máquina', '', ['glutes'], ['hamstrings'], 'Barbilla al pecho. Sube la cadera hasta alinearla con el torso y aprieta 1 segundo.'],
+      ['Prensa con énfasis en glúteos', 'Máquina', '', ['glutes'], ['quads', 'hamstrings'], 'Pies altos y abiertos en la plataforma. Baja profundo y empuja con los talones.']
     ]],
     ['Gemelos', [
-      ['Elevación de gemelos sentado', 'Máquina'],
-      ['Elevación de gemelos de pie', 'Máquina'],
-      ['Gemelos en prensa', 'Máquina']
+      ['Elevación de gemelos sentado', 'Máquina', '', ['calves'], [], 'Baja el talón al máximo y sube de puntillas con una pausa arriba.'],
+      ['Elevación de gemelos de pie', 'Máquina', '', ['calves'], [], 'Rodillas casi rectas y recorrido completo.'],
+      ['Gemelos en prensa', 'Máquina', '', ['calves'], [], 'Solo las puntas de los pies en la plataforma. Empuja con los dedos.']
     ]],
     ['Abdominales y core', [
-      ['Máquina de abdominales', 'Máquina'],
-      ['Máquina de rotación de tronco', 'Máquina'],
-      ['Banco de abdominales', 'Banco'],
-      ['Silla romana / elevación de piernas', 'Máquina'],
-      ['Polea para crunch abdominal', 'Polea']
+      ['Máquina de abdominales', 'Máquina', '', ['abs'], ['obliques'], 'Lleva el pecho hacia la pelvis encogiendo el tronco; no tires con los brazos.'],
+      ['Máquina de rotación de tronco', 'Máquina', '', ['obliques'], ['abs'], 'Gira desde el tronco con la cadera fija y sin coger impulso.'],
+      ['Banco de abdominales', 'Banco', '', ['abs'], ['obliques'], 'Sube enrollando la columna y baja controlado.'],
+      ['Silla romana / elevación de piernas', 'Máquina', '', ['abs'], ['obliques'], 'Espalda apoyada. Sube las rodillas al pecho sin balancearte.'],
+      ['Polea para crunch abdominal', 'Polea', '', ['abs'], ['obliques'], 'De rodillas, con la cuerda junto a la cabeza. Flexiona el tronco hacia abajo.']
     ]],
     ['Cardio', [
-      ['Cinta de correr', 'Cardio', 'cardio'],
-      ['Bicicleta estática', 'Cardio', 'cardio'],
-      ['Bicicleta reclinada', 'Cardio', 'cardio'],
-      ['Elíptica', 'Cardio', 'cardio'],
-      ['Máquina de escaleras', 'Cardio', 'cardio'],
-      ['Remo ergómetro', 'Cardio', 'cardio']
+      ['Cinta de correr', 'Cardio', 'cardio', ['quads', 'hamstrings', 'calves'], ['glutes'], 'Calienta 5 minutos. Sube la inclinación para más intensidad con menos impacto.'],
+      ['Bicicleta estática', 'Cardio', 'cardio', ['quads'], ['hamstrings', 'calves', 'glutes'], 'Sillín a la altura de la cadera: la rodilla casi estirada en el punto más bajo.'],
+      ['Bicicleta reclinada', 'Cardio', 'cardio', ['quads'], ['glutes', 'hamstrings'], 'Espalda apoyada: buena opción si tienes molestias lumbares.'],
+      ['Elíptica', 'Cardio', 'cardio', ['quads', 'glutes'], ['hamstrings', 'calves', 'delts', 'upperback'], 'Empuja y tira de los brazos para trabajar todo el cuerpo.'],
+      ['Máquina de escaleras', 'Cardio', 'cardio', ['glutes', 'quads'], ['calves', 'hamstrings'], 'No te apoyes en las barandillas y da pasos completos.'],
+      ['Remo ergómetro', 'Cardio', 'cardio', ['upperback', 'lats', 'quads'], ['hamstrings', 'biceps', 'glutes'], 'Orden: piernas, tronco y brazos; para volver, al revés.']
     ]]
   ],
+
+  // Músculos por defecto para ejercicios creados por el usuario
+  GROUP_MUSCLES: {
+    'Pecho': [['chest'], ['delts', 'triceps']],
+    'Espalda': [['lats', 'upperback'], ['biceps', 'rear']],
+    'Hombros': [['delts'], ['rear', 'traps']],
+    'Bíceps y antebrazos': [['biceps'], ['forearms']],
+    'Tríceps': [['triceps'], []],
+    'Cuádriceps y piernas': [['quads'], ['glutes']],
+    'Isquiotibiales': [['hamstrings'], ['glutes']],
+    'Glúteos y abductores': [['glutes'], ['abductors', 'hamstrings']],
+    'Gemelos': [['calves'], []],
+    'Abdominales y core': [['abs'], ['obliques']],
+    'Cardio': [['quads', 'hamstrings'], ['calves', 'glutes']]
+  },
 
   GENERAL_EQUIPMENT: [
     'Poleas dobles / crossover',
