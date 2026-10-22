@@ -9,7 +9,7 @@ App web (PWA) para planificar el día a día: rutinas, horas de estudio, gym y c
 - **Gym** — creas tus propias rutinas y las asignas a cada día de la semana; +60 ejercicios con mapa muscular (frontal y posterior) e indicaciones de cómo hacerlos; inventario del material de tu gimnasio; sesión en vivo con series/kg/reps, temporizador de descanso, “última vez”, récords, 1RM estimado, volumen y series por grupo.
 - **Comidas** — más de 100 alimentos con macros y micronutrientes, búsqueda en Open Food Facts, **escáner de códigos de barras con la cámara**, **foto del plato** (con análisis por IA dentro de claude.ai), alimentos propios, objetivos con calculadora (Mifflin-St Jeor) y análisis completo del día y de la semana.
 - **Estudio** — pomodoro por asignatura (25/5, 50/10, 90/15), horas por asignatura y objetivo semanal.
-- **Asistente** — chat con un asistente personal que conoce tu plan, entrenos, comidas y estudio, responde a cualquier pregunta y puede crear actividades, rutinas y registrar comidas por ti. Funciona al abrir FOCUS desde claude.ai (usa tu cuenta de Claude, sin claves).
+- **Asistente** — chat que funciona **sin internet y sin cuentas**: responde sobre tu plan, macros, progreso y estudio; crea actividades y rutinas, apunta comidas a partir de frases (“he comido 200 g de arroz”), da ideas de comidas y resuelve dudas de gym, nutrición, estudio y hábitos. Si abres FOCUS desde claude.ai, en Ajustes puedes cambiarlo a Claude para respuestas más completas y análisis de fotos.
 - **Ajustes** — notificaciones, tema claro/oscuro, copia de seguridad (exportar/importar).
 
 ## Uso

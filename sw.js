@@ -1,6 +1,6 @@
 /* Service worker: modo offline y notificaciones */
-const CACHE = 'focus-v2';
-const ASSETS = ['./', './index.html', './css/styles.css', './js/data.js', './js/app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './js/vendor/zxing.min.js'];
+const CACHE = 'focus-v3';
+const ASSETS = ['./', './index.html', './css/styles.css', './js/data.js', './js/local-ai.js', './js/app.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './js/vendor/zxing.min.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));

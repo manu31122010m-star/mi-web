@@ -71,7 +71,7 @@
   function defaults() {
     return {
       version: 2,
-      settings: { name: '', notify: true, sound: true, remind: 10, theme: 'auto' },
+      settings: { name: '', notify: true, sound: true, remind: 10, theme: 'auto', aiEngine: 'local' },
       blocks: [], done: {},
       routines: [], workouts: [], active: null, equipment: {}, customEx: [],
       foods: [], meals: {}, photos: {}, chat: [],
@@ -210,9 +210,10 @@
 
   // ---------- IA (Claude a través de claude.ai) ----------
   let SAMPLE = null, SAMPLE_LIMITS = null;
-  const aiImages = () => !!(SAMPLE && SAMPLE_LIMITS && SAMPLE_LIMITS.images);
+  const useClaude = () => S.settings.aiEngine === 'claude' && aiState === 'ready';
+  const aiImages = () => useClaude() && !!(SAMPLE_LIMITS && SAMPLE_LIMITS.images);
   function initAI() {
-    const done = ok => { aiState = ok ? 'ready' : 'none'; if (UI.view === 'asistente') render(); if (AF && AF.tab === 'foto') renderAF(); };
+    const done = ok => { aiState = ok ? 'ready' : 'none'; if (UI.view === 'asistente' || UI.view === 'ajustes') render(); if (AF && AF.tab === 'foto') renderAF(); };
     if (!window.claude || typeof window.claude.use !== 'function') { aiState = 'none'; return; }
     window.claude.use('sample').then(async fn => {
       if (!fn) return done(false);
@@ -1412,14 +1413,15 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   // =====================================================================
   let AIRUN = null; // {ctl, text, actions}
   let aiState = 'pending'; // pending | ready | none
-  const ASSISTANT_URL = 'https://claude.ai/artifact/1Ga5iMiBcyZrgVWbMiPF4c';
   const SUGGESTIONS = [
-    '¿Qué me toca hacer ahora y qué me queda hoy?',
+    '¿Qué me toca hacer ahora?',
     'Créame una rutina de pecho y tríceps para hoy',
-    '¿Cómo voy de macros hoy? ¿Qué ceno?',
-    'Organízame 3 horas de estudio mañana por la tarde',
-    'Dame 5 desayunos altos en proteína',
-    'Explícame cómo funciona la sobrecarga progresiva'
+    '¿Cómo voy de macros hoy?',
+    '¿Qué ceno?',
+    'Añade estudiar matemáticas mañana de 17 a 19',
+    'He desayunado 2 huevos y una tostada de pan integral',
+    '¿Cuántas series hago por músculo?',
+    '¿Qué puedes hacer?'
   ];
   function mdLite(t) {
     const inline = x => esc(x).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
@@ -1437,22 +1439,16 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
     return out.join('');
   }
   function viewAsistente() {
-    if (aiState !== 'ready') {
-      return aiState === 'pending'
-        ? '<div class="card center" style="padding:40px 16px"><div class="spinner"></div><p class="muted">Conectando con tu asistente…</p></div>'
-        : `<div class="card empty"><div class="big">✨</div><b>Tu asistente personal funciona dentro de claude.ai</b>
-          <p class="li-sub">Abre FOCUS desde este enlace con tu cuenta de Claude para hablar con él. No necesitas ninguna clave.</p>
-          <a class="btn primary mt" href="${ASSISTANT_URL}" target="_blank" rel="noopener">Abrir FOCUS en claude.ai</a></div>`;
-    }
     const msgs = S.chat.map(m => m.role === 'user'
       ? `<div class="msg user">${esc(m.content).replace(/\n/g, '<br>')}</div>`
       : `<div class="msg ai ${m.err ? 'err' : ''}">${mdLite(m.content)}${m.actions && m.actions.length ? `<div class="ai-acts">${m.actions.map(a => `<span class="badge ok">✓ ${esc(a)}</span>`).join('')}</div>` : ''}</div>`).join('');
     const live = AIRUN ? `<div class="msg ai" id="aiLive">${AIRUN.text ? mdLite(AIRUN.text) : '<span class="typing"><i></i><i></i><i></i></span> <span class="muted">Pensando…</span>'}</div>` : '';
-    const empty = !S.chat.length && !AIRUN ? `<div class="card hero"><div style="position:relative;z-index:1"><div class="muted">Asistente personal</div><h2>¿En qué te ayudo${S.settings.name ? ', ' + esc(S.settings.name) : ''}? ✨</h2>
-        <div class="muted mt" style="font-size:14px">Conozco tu plan, tus entrenos, tus comidas y tu estudio. Pregúntame lo que quieras y puedo añadir actividades, rutinas o comidas por ti.</div></div></div>
+    const mode = useClaude() ? '✨ Claude' : '⚡ Sin conexión · en tu móvil';
+    const empty = !S.chat.length && !AIRUN ? `<div class="card hero"><div style="position:relative;z-index:1"><div class="muted">Asistente personal · ${mode}</div><h2>¿En qué te ayudo${S.settings.name ? ', ' + esc(S.settings.name) : ''}? ✨</h2>
+        <div class="muted mt" style="font-size:14px">Conozco tu plan, tus entrenos, tus comidas y tu estudio. Pregúntame y puedo añadir actividades, crear rutinas o apuntar comidas por ti.</div></div></div>
       <div class="sec-title">Prueba con</div>
       <div class="stack">${SUGGESTIONS.map(q => `<button class="btn block" style="justify-content:flex-start;white-space:normal;text-align:left" data-act="askAI" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>` : '';
-    return `${empty}<div class="chat">${msgs}${live}</div>
+    return `${empty}${S.chat.length || AIRUN ? `<div class="row between mb"><span class="badge">${mode}</span><button class="link" data-act="clearChat">Borrar chat</button></div>` : ''}<div class="chat">${msgs}${live}</div>
       <div class="chatbar"><div class="chatbar-in">
         <textarea id="chatIn" data-in="chatIn" rows="1" maxlength="2000" placeholder="Escribe tu pregunta…">${esc(UI.chatDraft || '')}</textarea>
         ${AIRUN ? '<button class="btn danger" data-act="aiStop" aria-label="Parar">■</button>' : '<button class="btn primary" data-act="aiSend" aria-label="Enviar">➤</button>'}
@@ -1584,9 +1580,26 @@ Datos actuales del usuario (JSON):
   }
   const chatAtBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 140;
   const chatScroll = () => window.scrollTo(0, document.documentElement.scrollHeight);
+  let LOCAL = null;
+  function sendLocal(text) {
+    S.chat.push({ role: 'user', content: text, ts: Date.now() });
+    UI.chatDraft = '';
+    AIRUN = { ctl: new AbortController(), text: '', actions: [] };
+    render(); chatScroll();
+    setTimeout(() => {
+      let res;
+      try { res = LOCAL.reply(text); } catch (e) { console.error(e); res = { text: 'Ups, algo ha fallado al responder. Prueba a decirlo de otra forma.' }; }
+      AIRUN = null;
+      S.chat.push({ role: 'assistant', content: res.text, actions: res.actions || [], ts: Date.now() });
+      S.chat = S.chat.slice(-40);
+      save();
+      if (UI.view === 'asistente') { render(); chatScroll(); }
+    }, 450);
+  }
   async function sendChat(text) {
     text = String(text || '').trim();
-    if (!text || AIRUN || !SAMPLE) return;
+    if (!text || AIRUN) return;
+    if (!useClaude()) return sendLocal(text);
     const turns = chatTurns(text);
     S.chat.push({ role: 'user', content: text, ts: Date.now() });
     S.chat = S.chat.slice(-40);
@@ -1642,6 +1655,12 @@ Datos actuales del usuario (JSON):
         <button class="btn block mt" data-act="testNotif">Probar aviso</button>
         <p class="li-sub mt">💡 Los avisos funcionan mientras la app está abierta o en segundo plano. Para recibirlos con el móvil bloqueado y la app cerrada, exporta el plan a tu calendario desde la pestaña Plan.</p>
       </div>
+      <div class="sec-title">Asistente</div>
+      <div class="card">
+        <label for="stEngine" style="margin-top:0">Cómo responde</label>
+        <select id="stEngine" data-in="stEngine"><option value="local" ${st.aiEngine !== 'claude' ? 'selected' : ''}>⚡ Sin conexión (en tu móvil, gratis)</option>${aiState === 'ready' ? `<option value="claude" ${st.aiEngine === 'claude' ? 'selected' : ''}>✨ Claude (más completo, usa tu cuenta)</option>` : ''}</select>
+        <p class="li-sub">${aiState === 'ready' ? 'Con Claude responde a cualquier pregunta y analiza fotos de tus platos; consume uso de tu cuenta de Claude.' : 'El asistente funciona sin internet y sin ninguna cuenta.'}</p>
+      </div>
       <div class="sec-title">Datos</div>
       <div class="card">
         <div class="li-sub">Todo se guarda en este dispositivo (${r1(used / 1024)} KB usados).</div>
@@ -1674,7 +1693,7 @@ Datos actuales del usuario (JSON):
     $('#view').innerHTML = html;
     $$('#view .chips').forEach((c, i) => { if (chipX[i]) c.scrollLeft = chipX[i]; });
     if (window.scrollY !== y) window.scrollTo(0, y);
-    document.body.classList.toggle('has-chatbar', UI.view === 'asistente' && aiState === 'ready');
+    document.body.classList.toggle('has-chatbar', UI.view === 'asistente');
     $$('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.v === UI.view));
     renderFloating();
   }
@@ -2019,8 +2038,8 @@ Datos actuales del usuario (JSON):
     // asistente
     askAI(el) {
       const q = el.dataset.q;
-      if (aiState === 'ready') { if (UI.view !== 'asistente') location.hash = 'asistente'; setTimeout(() => sendChat(q), 0); }
-      else { UI.chatDraft = q; location.hash = 'asistente'; }
+      if (UI.view !== 'asistente') location.hash = 'asistente';
+      setTimeout(() => sendChat(q), 0);
     },
     aiSend() { const t = $('#chatIn'); sendChat(t ? t.value : UI.chatDraft); },
     aiStop() { if (AIRUN) AIRUN.ctl.abort(); },
@@ -2068,6 +2087,7 @@ Datos actuales del usuario (JSON):
     fpG() { updatePortion(); },
     aiG(el) { AF.ai[+el.dataset.i].g = num(el.value); },
     eeG(el) { const e = (S.meals[UI.foodDate] || []).find(x => x.id === el.dataset.id); if (e) updateEntryPrev(e); },
+    stEngine(el) { S.settings.aiEngine = el.value === 'claude' ? 'claude' : 'local'; save(); },
     chatIn(el) { UI.chatDraft = el.value; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; },
     pomoSub(el) { S.timer.subjectId = el.value; save(); },
     stName(el) { S.settings.name = el.value.trim(); save(); },
@@ -2113,6 +2133,11 @@ Datos actuales del usuario (JSON):
   load();
   buildEx();
   initAI();
+  LOCAL = window.FocusLocalAI({
+    S: () => S, EX: () => EX, save, uid, norm, slug, pad, r0, r1, clamp, num, DAYS, DAYS_S, CATS, MEALS, MUSCLE_ES,
+    dkey, dow, nowMin, toMin, durMin, fmtH, fmtDate, weekStart, blocksFor, dayTotals, scaleN, addEntry, mealName, guessMeal,
+    exAvail, exPR, workoutVolume, allFoods: () => [...S.foods, ...DBFOODS]
+  });
   applyTheme();
   { const v = location.hash.slice(1); UI.view = VIEWS[v] ? v : 'hoy'; }
   if (S.timer.running && S.timer.endAt <= Date.now()) pomoComplete();
