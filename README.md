@@ -1,4 +1,4 @@
-# Mis apps: Estudio y FOCUS
+# Mis apps: Estudio, FOCUS y Mi Gym
 
 Dos apps web instalables (PWA), sin dependencias ni compilación. Funcionan sin conexión y guardan los datos solo en el dispositivo.
 
@@ -18,6 +18,17 @@ Dos apps web instalables (PWA), sin dependencias ni compilación. Funcionan sin 
 - **Comidas**: +100 alimentos con macros y micronutrientes, Open Food Facts, escáner de código de barras, fotos, objetivos y análisis.
 - **Asistente sin conexión**: crea rutinas, apunta comidas a partir de frases, macros, ideas de comidas, progreso y dudas de gym y nutrición.
 - Avisos antes de entrenar y a las horas de comida que elijas.
+
+## 💪 Mi Gym (`gym/`)
+
+App de gimnasio con tu logo como icono en la pantalla de inicio, inspirada en apps como Symmetry, Strong o Hevy.
+
+- **76 ejercicios** (todas las máquinas de tu gimnasio + peso libre) con **animación** del movimiento sobre la máquina, músculos que trabaja resaltados, mapa muscular delante/detrás, pasos de técnica y errores comunes.
+- **Rutinas** propias por día de la semana: series, repeticiones objetivo, descanso y notas por ejercicio. Plantillas opcionales (empuje, tirón, pierna, torso, glúteo, full body).
+- **Entreno en vivo**: cronómetro, valores de la sesión anterior, serie de calentamiento/drop/fallo, descanso automático con sonido y vibración, pantalla siempre encendida y aviso de récords.
+- **Inicio**: semana y racha, rutina de hoy, **recuperación muscular** y series por grupo muscular.
+- **Historial y progreso**: calendario, volumen semanal, 1RM estimado por ejercicio, récords y peso corporal.
+- **Perfil**: material de tu gimnasio (filtro “Solo mi material”), descanso por defecto y copia de seguridad.
 
 ## Uso
 

@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parent.parent
 APPS = {
     'estudio': ((40, 560, 680, 1200), (35, 43, 53)),
     'focus': ((60, 800, 720, 1460), (12, 14, 14)),
+    'gym': ((10, 540, 730, 1260), (36, 43, 51)),
 }
 
 for app, (box, bg) in APPS.items():

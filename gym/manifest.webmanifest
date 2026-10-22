@@ -1,0 +1,22 @@
+{
+  "name": "Mi Gym — rutinas y entrenos",
+  "short_name": "Mi Gym",
+  "description": "Organiza tus rutinas de gimnasio con ejercicios animados, mapa muscular, entreno en vivo con descansos, historial y progreso.",
+  "lang": "es",
+  "id": "./",
+  "start_url": "./#hoy",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#242b33",
+  "theme_color": "#1b2128",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Entreno libre", "url": "./#hoy", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Ejercicios", "url": "./#ejercicios", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
