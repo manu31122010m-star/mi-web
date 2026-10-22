@@ -1,4 +1,4 @@
-# Mi Rutina
+# FOCUS
 
 App web (PWA) para planificar el día a día: rutinas, horas de estudio, gym y comidas, con avisos.
 

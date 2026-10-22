@@ -1,4 +1,4 @@
-/* Mi Rutina — planificador diario, gym, nutrición y estudio */
+/* FOCUS — planificador diario, gym, nutrición y estudio */
 'use strict';
 (() => {
   const D = window.APPDATA;
@@ -489,7 +489,7 @@
     const icsEsc = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
     const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
     const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Mi Rutina//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Mi Rutina'];
+    const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FOCUS//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:FOCUS'];
     for (const b of S.blocks) {
       if (!b.days.length) continue;
       const d = new Date(); d.setHours(0, 0, 0, 0);
@@ -504,7 +504,7 @@
       L.push('END:VEVENT');
     }
     L.push('END:VCALENDAR');
-    download('mi-rutina.ics', L.join('\r\n'), 'text/calendar');
+    download('focus-plan.ics', L.join('\r\n'), 'text/calendar');
     toast('Calendario exportado 📅', 'Ábrelo con Google Calendar o el calendario del móvil para importar el plan con sus alarmas.');
   }
   function download(name, text, type) {
@@ -1367,7 +1367,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
         <button class="btn block mt" data-act="clearPhotos">🗑 Borrar fotos de comidas</button>
         <button class="btn danger block mt" data-act="resetAll">Borrar todos los datos</button>
       </div>
-      <p class="center dim" style="font-size:12px">Mi Rutina · v1.0</p>`;
+      <p class="center dim" style="font-size:12px">FOCUS · v1.0</p>`;
   }
 
   // =====================================================================
@@ -1377,7 +1377,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
   function render() {
     const [title, fn] = VIEWS[UI.view] || VIEWS.hoy;
     $('#topTitle').textContent = UI.view === 'gym' && S.active ? 'Entrenando' : title;
-    $('#topDate').textContent = fmtDate(dkey());
+    $('#topDate').textContent = 'FOCUS · ' + fmtDate(dkey());
     let html;
     try { html = fn(); } catch (e) {
       console.error(e);
@@ -1731,7 +1731,7 @@ Si no es comida, devuelve {"items":[],"note":"No se detecta comida"}.`;
 
     // ajustes
     setToggle(el) { S.settings[el.dataset.k] = el.checked; save(); if (el.dataset.k === 'notify' && el.checked && 'Notification' in window && Notification.permission === 'default') askNotif(); },
-    exportJSON() { download(`mi-rutina-copia-${dkey()}.json`, JSON.stringify(S), 'application/json'); toast('Copia exportada ✅'); },
+    exportJSON() { download(`focus-copia-${dkey()}.json`, JSON.stringify(S), 'application/json'); toast('Copia exportada ✅'); },
     importJSON() {
       const inp = $('#importFile');
       inp.onchange = () => {
