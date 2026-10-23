@@ -5,7 +5,7 @@ window.GYMDATA = (function () {
     chest: 'Pecho', delts: 'Hombro (deltoides)', rear: 'Deltoides posterior', traps: 'Trapecio', lats: 'Dorsal ancho',
     upperback: 'Espalda media', lowerback: 'Lumbares', biceps: 'Bíceps', triceps: 'Tríceps', forearms: 'Antebrazos',
     abs: 'Abdominales', obliques: 'Oblicuos', quads: 'Cuádriceps', hamstrings: 'Isquiotibiales', glutes: 'Glúteos',
-    adductors: 'Aductores', abductors: 'Abductores', calves: 'Gemelos'
+    adductors: 'Aductores', abductors: 'Abductores', calves: 'Gemelos', tibialis: 'Tibial anterior', rotator: 'Manguito rotador'
   };
 
   const EQUIP = {
@@ -20,11 +20,18 @@ window.GYMDATA = (function () {
     manc: ['Mancuernas', '🏋️'],
     barra: ['Barras y discos', '🥏'],
     cardio: ['Máquinas de cardio', '🏃'],
-    cuerpo: ['Peso corporal', '🤸']
+    cuerpo: ['Peso corporal', '🤸'],
+    kb: ['Kettlebell', '🔔'],
+    banda: ['Banda elástica', '➰'],
+    fitball: ['Fitball / balón', '⚪'],
+    anillas: ['Anillas / TRX', '⭕'],
+    cajon: ['Cajón / escalón', '📦'],
+    comba: ['Comba', '🪢'],
+    otros: ['Material funcional (trineo, cuerdas, rueda…)', '🧰']
   };
 
-  const GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps y antebrazos', 'Tríceps', 'Cuádriceps y piernas', 'Isquiotibiales', 'Glúteos y abductores', 'Gemelos', 'Abdominales y core', 'Cardio'];
-  const GROUP_ICON = { 'Pecho': '🫁', 'Espalda': '🦅', 'Hombros': '🥥', 'Bíceps y antebrazos': '💪', 'Tríceps': '🔱', 'Cuádriceps y piernas': '🦵', 'Isquiotibiales': '🦿', 'Glúteos y abductores': '🍑', 'Gemelos': '🦶', 'Abdominales y core': '🧱', 'Cardio': '❤️' };
+  const GROUPS = ['Pecho', 'Espalda', 'Hombros', 'Bíceps y antebrazos', 'Tríceps', 'Cuádriceps y piernas', 'Isquiotibiales', 'Glúteos y abductores', 'Gemelos', 'Abdominales y core', 'Cuerpo completo y funcional', 'Cardio'];
+  const GROUP_ICON = { 'Pecho': '🫁', 'Espalda': '🦅', 'Hombros': '🥥', 'Bíceps y antebrazos': '💪', 'Tríceps': '🔱', 'Cuádriceps y piernas': '🦵', 'Isquiotibiales': '🦿', 'Glúteos y abductores': '🍑', 'Gemelos': '🦶', 'Abdominales y core': '🧱', 'Cuerpo completo y funcional': '⚡', 'Cardio': '❤️' };
 
   // [nombre, animación, material, principales, secundarios, tipo, pasos, errores]
   // tipo: r = peso × reps · a = máquina asistida (kg de ayuda) · b = peso corporal · t = tiempo · c = cardio
@@ -283,7 +290,27 @@ window.GYMDATA = (function () {
 
   const slug = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const EXERCISES = [];
-  for (const g of GROUPS) for (const [n, a, e, p, s, t, steps, errs] of RAW[g]) EXERCISES.push({ id: slug(n), n, g, a, e, p, s, t, steps, errs });
+  for (const g of GROUPS) for (const [n, a, e, p, s, t, steps, errs] of RAW[g] || []) EXERCISES.push({ id: slug(n), n, g, a, e, p, s, t, steps, errs });
+
+  // Lista completa por grupo y subgrupo (data-extra.js)
+  const X = window.GYMDATA_EXTRA || { SUB: {}, VAR: {}, ALSO: {}, NEW: {} };
+  const DEFAULT_SUB = { 'Pecho': 'Pectoral medio (plano)', 'Espalda': 'Espalda media y grosor (tirón horizontal)', 'Hombros': 'Deltoides anterior', 'Bíceps y antebrazos': 'Bíceps', 'Tríceps': 'Tríceps', 'Cuádriceps y piernas': 'Cuádriceps', 'Isquiotibiales': 'Isquiotibiales', 'Glúteos y abductores': 'Glúteo mayor', 'Gemelos': 'Gemelos y sóleo', 'Abdominales y core': 'Recto abdominal', 'Cuerpo completo y funcional': 'Cuerpo completo y funcional', 'Cardio': 'Cardio' };
+  EXERCISES.forEach(e => { e.sg = X.SUB[e.id] || DEFAULT_SUB[e.g]; if (X.VAR[e.id]) e.v = X.VAR[e.id]; });
+  for (const g of GROUPS) for (const [sg, n, a, e, p, s, t, steps, errs, v] of (X.NEW[g] || [])) {
+    const id = slug(n);
+    if (EXERCISES.some(x => x.id === id)) continue;
+    EXERCISES.push({ id, n, g, sg, a, e, p, s, t, steps, errs, ...(v ? { v } : {}) });
+  }
+  for (const [n, list] of Object.entries(X.ALSO || {})) { const e = EXERCISES.find(x => x.id === slug(n)); if (e) e.also = list; }
+  // Los encogimientos van con el trapecio (Espalda), como en la lista por grupos
+  const shrug = EXERCISES.find(x => x.id === 'encogimientos-para-trapecio');
+  if (shrug) { shrug.g = 'Espalda'; shrug.sg = 'Trapecio y romboides'; }
+  EXERCISES.sort((a, b) => GROUPS.indexOf(a.g) - GROUPS.indexOf(b.g));
+  // Subgrupos en el orden en que aparecen
+  const SUB_ORDER = ['Pectoral medio (plano)', 'Pectoral superior (inclinado)', 'Pectoral inferior (declinado)', 'Aislamiento', 'Dorsal ancho (tirón vertical)', 'Espalda media y grosor (tirón horizontal)', 'Trapecio y romboides', 'Lumbares y cadena posterior', 'Deltoides anterior', 'Deltoides lateral', 'Deltoides posterior', 'Manguito rotador y estabilidad', 'Bíceps', 'Antebrazos', 'Recto abdominal', 'Oblicuos', 'Core profundo y estabilidad', 'Glúteo mayor', 'Glúteo medio y menor', 'Aductores', 'Abductores', 'Gemelos y sóleo', 'Tibial anterior'];
+  const SUBGROUPS = {};
+  EXERCISES.forEach(e => { (SUBGROUPS[e.g] = SUBGROUPS[e.g] || []).includes(e.sg) || SUBGROUPS[e.g].push(e.sg); (e.also || []).forEach(([g, sg]) => { (SUBGROUPS[g] = SUBGROUPS[g] || []).includes(sg) || SUBGROUPS[g].push(sg); }); });
+  Object.values(SUBGROUPS).forEach(l => l.sort((a, b) => (SUB_ORDER.indexOf(a) + 1 || 99) - (SUB_ORDER.indexOf(b) + 1 || 99)));
 
   // Plantillas opcionales (el usuario decide si las añade)
   const TEMPLATES = [
@@ -295,5 +322,5 @@ window.GYMDATA = (function () {
     { name: 'Full body en máquinas', color: '#56c8f5', items: ['prensa-de-piernas', 'press-de-pecho-sentado', 'jalon-al-pecho', 'press-de-hombros', 'curl-femoral-sentado', 'maquina-de-abdominales', 'bicicleta-estatica'] }
   ];
 
-  return { MUSCLES, EQUIP, GROUPS, GROUP_ICON, EXERCISES, TEMPLATES, slug };
+  return { MUSCLES, EQUIP, GROUPS, GROUP_ICON, EXERCISES, TEMPLATES, SUBGROUPS, slug };
 })();

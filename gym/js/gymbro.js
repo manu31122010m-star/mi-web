@@ -60,6 +60,13 @@ window.createGymBro = function (api) {
     [/pierna|tren inferior|\bleg/, ['Cuádriceps y piernas', 'Isquiotibiales', 'Glúteos y abductores', 'Gemelos']],
     [/abdominal|abdomen|\babs\b|core|\bcore\b/, ['Abdominales y core']],
     [/cardio/, ['Cardio']],
+    [/funcional|crossfit|halterofilia|olimpic|metcon/, ['Cuerpo completo y funcional']],
+    [/antebrazo|agarre/, ['Bíceps y antebrazos']],
+    [/trapecio|romboide|lumbar/, ['Espalda']],
+    [/tibial|soleo/, ['Gemelos']],
+    [/aductor|abductor/, ['Glúteos y abductores']],
+    [/oblicuo/, ['Abdominales y core']],
+    [/manguito|rotador/, ['Hombros']],
     [/empuje|\bpush\b/, ['Pecho', 'Hombros', 'Tríceps']],
     [/tiron|\bpull\b/, ['Espalda', 'Bíceps y antebrazos']],
     [/torso|tren superior/, ['Pecho', 'Espalda', 'Hombros', 'Bíceps y antebrazos', 'Tríceps']],
@@ -81,13 +88,19 @@ window.createGymBro = function (api) {
     [/extension(es)? de cuadriceps|extension de piernas/, 'extension-de-cuadriceps'], [/remo/, 'remo-sentado-en-polea'], [/elevaciones laterales|laterales/, 'elevaciones-laterales-en-maquina'],
     [/cruce de poleas|crossover/, 'cruce-de-poleas'], [/zancada/, 'zancadas-con-mancuernas'], [/plancha/, 'plancha'], [/cinta/, 'cinta-de-correr'], [/eliptica/, 'eliptica'], [/bici/, 'bicicleta-estatica']
   ];
+  const nameWords = e => norm(e.n).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+  const matchW = (t, w) => t.includes(w) || (w.length > 5 && t.includes(w.slice(0, 5)));
   function findExercise(t) {
     let best = null, bestScore = 0;
+    // Palabras de la frase que forman parte de algún nombre de ejercicio (el resto es relleno)
+    const vocab = new Set(allEx().flatMap(nameWords));
+    const qWords = t.split(' ').filter(w => vocab.has(w));
     for (const e of allEx()) {
-      const words = norm(e.n).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+      const words = nameWords(e);
       if (!words.length) continue;
-      const hit = words.filter(w => t.includes(w) || (w.length > 5 && t.includes(w.slice(0, 5)))).length;
-      const sc = hit / words.length + (t.includes(norm(e.n)) ? 1 : 0);
+      const hit = words.filter(w => matchW(t, w)).length;
+      const extra = qWords.filter(q => !words.some(w => w === q || (w.length > 5 && q.startsWith(w.slice(0, 5))))).length;
+      const sc = hit / (words.length + extra) + (t.includes(norm(e.n)) ? 1 : 0);
       if (hit && sc > bestScore) { bestScore = sc; best = e; }
     }
     if (bestScore >= .99) return best;
@@ -97,7 +110,7 @@ window.createGymBro = function (api) {
 
   // ---------- creación de rutinas ----------
   const EQUIP_PREF = t => /mancuerna/.test(t) ? ['manc'] : /barra|peso libre|libre/.test(t) ? ['barra', 'manc'] : /maquina/.test(t) ? ['maquina', 'polea'] : null;
-  const PER_GROUP = { 'Cuádriceps y piernas': 1.4, 'Espalda': 1.3, 'Pecho': 1.2, 'Isquiotibiales': 1, 'Glúteos y abductores': 1, 'Hombros': 1, 'Bíceps y antebrazos': .8, 'Tríceps': .8, 'Gemelos': .5, 'Abdominales y core': .6, 'Cardio': .4 };
+  const PER_GROUP = { 'Cuádriceps y piernas': 1.4, 'Espalda': 1.3, 'Pecho': 1.2, 'Isquiotibiales': 1, 'Glúteos y abductores': 1, 'Hombros': 1, 'Bíceps y antebrazos': .8, 'Tríceps': .8, 'Gemelos': .5, 'Abdominales y core': .6, 'Cuerpo completo y funcional': .8, 'Cardio': .4 };
   // Orden preferido dentro de cada grupo (los demás van después, en el orden de la biblioteca)
   const PRIORITY = {
     'Glúteos y abductores': ['maquina-de-hip-thrust', 'patada-de-gluteo-en-maquina', 'maquina-de-abductores'],
@@ -284,15 +297,32 @@ window.createGymBro = function (api) {
     return out(`No tienes rutina para hoy. Te recomiendo **${r.name}** porque ${why}${yesterday ? ' (ayer entrenaste otros músculos, así que estos están descansados)' : ''}:\n\n${routineText(r)}`, routineActions(r));
   }
 
-  function exercisesFor(groups) {
-    const list = allEx().filter(e => groups.includes(e.g)).slice(0, 12);
-    return out(`Ejercicios de **${listJoin(groups.map(g => g.toLowerCase()))}** (toca para ver la animación):\n\n` + list.map(e => `• **${e.n}** — ${e.p.map(m => D.MUSCLES[m]).join(', ')}`).join('\n'),
-      list.slice(0, 6).map(e => ({ label: e.n, type: 'openEx', payload: e.id })).concat([{ label: '🏋️ Crear rutina con estos', type: 'ask', payload: 'crea una rutina de ' + groups.join(' y ').toLowerCase() }]));
+  // Subgrupos que se pueden pedir por su nombre
+  const SUB_WORDS = [
+    [/pecho (alto|superior)|pectoral superior|inclinad/, 'Pectoral superior (inclinado)'], [/pecho (bajo|inferior)|pectoral inferior|declinad/, 'Pectoral inferior (declinado)'],
+    [/pecho (medio|plano)/, 'Pectoral medio (plano)'], [/dorsal|tiron vertical|amplitud/, 'Dorsal ancho (tirón vertical)'], [/grosor|espalda media|tiron horizontal/, 'Espalda media y grosor (tirón horizontal)'],
+    [/trapecio|romboide/, 'Trapecio y romboides'], [/lumbar|cadena posterior/, 'Lumbares y cadena posterior'], [/deltoides? anterior|hombro delantero/, 'Deltoides anterior'],
+    [/deltoides? lateral|hombro lateral/, 'Deltoides lateral'], [/deltoides? posterior|hombro posterior|deltoides trasero/, 'Deltoides posterior'], [/manguito|rotador/, 'Manguito rotador y estabilidad'],
+    [/antebrazo|agarre/, 'Antebrazos'], [/recto abdominal|abdominal superior/, 'Recto abdominal'], [/oblicuo/, 'Oblicuos'], [/core profundo|estabilidad|anti ?rotacion/, 'Core profundo y estabilidad'],
+    [/gluteo mayor/, 'Glúteo mayor'], [/gluteo medio|gluteo menor/, 'Glúteo medio y menor'], [/aductor/, 'Aductores'], [/abductor/, 'Abductores'], [/soleo/, 'Gemelos y sóleo'], [/tibial/, 'Tibial anterior']
+  ];
+  const inG = (e, g) => e.g === g || (e.also || []).some(a => a[0] === g);
+  const subIs = (e, sg) => e.sg === sg || (e.also || []).some(a => a[1] === sg);
+  function exercisesFor(groups, t = '') {
+    const sub = (SUB_WORDS.find(([re]) => re.test(t)) || [])[1];
+    const list = allEx().filter(e => sub ? subIs(e, sub) : groups.some(g => inG(e, g)));
+    const bySub = {};
+    const keyOf = e => sub || (groups.includes(e.g) ? e.sg : ((e.also || []).find(a => groups.includes(a[0])) || [])[1]) || e.g;
+    list.forEach(e => (bySub[keyOf(e)] = bySub[keyOf(e)] || []).push(e));
+    const title = sub || listJoin(groups.map(g => g.toLowerCase()));
+    const txt = `Tengo **${list.length} ejercicios** de **${title}** (toca uno para ver su animación):\n\n` + Object.entries(bySub).map(([sg, es]) => `**${sg}**\n` + es.slice(0, 10).map(e => `• ${e.n}${e.v ? ' (' + e.v + ')' : ''}`).join('\n') + (es.length > 10 ? `\n• …y ${es.length - 10} más` : '')).join('\n\n');
+    return out(txt, list.slice(0, 6).map(e => ({ label: e.n, type: 'openEx', payload: e.id })).concat([{ label: '🏋️ Crear rutina con estos', type: 'ask', payload: 'crea una rutina de ' + (groups.length ? groups.join(' y ') : sub).toLowerCase() }]));
   }
 
   const HELP = 'Soy **GymBro** 🤜🤛, tu compañero de gym. Puedo:\n\n• **Crear rutinas**: «hazme una rutina de pecho y tríceps de 45 min para el lunes»\n• **Planes semanales**: «plan de 4 días para ganar músculo»\n• Decirte **qué entrenar hoy** según tu historial\n• Explicar la **técnica** de cualquier ejercicio y darte **alternativas**\n• Ver tu **progreso y récords**: «¿cómo voy en prensa?»\n• Calcular tu **1RM**: «100 kg x 5»\n• Dudas de **series, reps, descanso, proteína, creatina, agujetas, definir o volumen…**\n\nFunciono sin conexión, con los datos de tu móvil.';
   const SUGGEST = [{ label: '¿Qué entreno hoy?', type: 'ask', payload: '¿Qué entreno hoy?' }, { label: 'Plan de 4 días', type: 'ask', payload: 'Hazme un plan de 4 días para ganar músculo' }, { label: 'Mi progreso', type: 'ask', payload: '¿Cómo voy?' }];
 
+  const wantsRoutineRe = /rutina|hazme|creame|crea |monta|genera|disena|preparame/;
   function reply(raw) {
     const t = norm(raw);
     if (!t) return out('Escríbeme algo 🙂');
@@ -306,13 +336,14 @@ window.createGymBro = function (api) {
     const r1 = /1\s*rm|rm\b|repeticion maxima|maximo teorico|calcula/.test(t) || /\d+\s*(kg|kilos)?\s*(x|×)\s*\d+/.test(t) ? oneRM(t) : null;
     if (r1) return r1;
 
+    if (/(que |dame |dime |lista de |ver )?ejercicios (de|para)|que ejercicios|ejercicios funcionales/.test(t) && !wantsRoutineRe.test(t) && (groupsIn(t).length || SUB_WORDS.some(([re]) => re.test(t)))) return exercisesFor(groupsIn(t), t);
     const ex = findExercise(t);
     const groups = groupsIn(t);
     const wantsRoutine = /rutina|entreno de|entrenamiento de|sesion de|dia de|hazme|creame|crea |monta|genera|disena|preparame|dame un entreno/.test(t);
-    const wantsPlan = /plan|split|semana|dias a la semana|dias por semana|veces (a|por) (la )?semana/.test(t) && (daysPerWeek(t) || /plan|split/.test(t));
+    const wantsPlan = /\bplan(es)?\b|split|semana|dias a la semana|dias por semana|veces (a|por) (la )?semana/.test(t) && (daysPerWeek(t) || /\bplan(es)?\b|split/.test(t));
 
     if (/que (entreno|hago|toca|entrenar)|que deberia entrenar|que me toca/.test(t) && !groups.length) return whatToday();
-    if (wantsPlan && !(wantsRoutine && groups.length && !/plan|split/.test(t))) return splitPlan(daysPerWeek(t) || S().profile.goal || 4, t);
+    if (wantsPlan && !(wantsRoutine && groups.length && !/\bplan(es)?\b|split/.test(t))) return splitPlan(daysPerWeek(t) || S().profile.goal || 4, t);
     if (wantsRoutine && (groups.length || !ex)) {
       const goal = goalOf(t), mins = minutes(t), days = parseDays(t);
       const n = mins ? Math.max(3, Math.min(10, Math.round(mins / 8))) : 0;
@@ -324,7 +355,7 @@ window.createGymBro = function (api) {
     if (/como voy|mi progreso|resumen|estadistica|mis record|cuantos entrenos|mi historial/.test(t)) return progressSummary();
     for (const [re, fn] of TIPS) if (re.test(t)) return out(fn(), /principiante|empezar|nuevo/.test(t) ? [{ label: '🏋️ Rutina full body', type: 'ask', payload: 'crea una rutina full body en máquinas' }] : []);
     if (ex) return exInfo(ex);
-    if (groups.length) return exercisesFor(groups);
+    if (groups.length || SUB_WORDS.some(([re]) => re.test(t))) return exercisesFor(groups, t);
     return out('No te he entendido del todo 🤔. Prueba con algo como:\n\n• «Rutina de espalda y bíceps de 1 hora»\n• «Plan de 3 días»\n• «¿Cómo se hace el hip thrust?»\n• «Alternativas a la prensa»\n• «¿Cuánta proteína necesito?»', SUGGEST);
   }
 

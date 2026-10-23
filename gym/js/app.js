@@ -78,12 +78,14 @@
     obliques: [['e', 38.5, 72, 3.8, 12], ['e', 61.5, 72, 3.8, 12]],
     adductors: [['e', 47.3, 117, 2.6, 10], ['e', 52.7, 117, 2.6, 10]],
     quads: [['e', 41.5, 128, 7.3, 19], ['e', 58.5, 128, 7.3, 19]],
-    calves: [['e', 40.5, 167, 5, 14], ['e', 59.5, 167, 5, 14]]
+    calves: [['e', 40.5, 167, 5, 14], ['e', 59.5, 167, 5, 14]],
+    tibialis: [['e', 42.5, 165, 2.2, 11], ['e', 57.5, 165, 2.2, 11]]
   };
   const BODY_BACK = {
     _base: [['c', 50, 15, 9], ['r', 45.5, 23, 9, 8, 2], ['p', 'M33 35 Q50 30 67 35 L66 95 Q50 102 34 95 Z'], ['c', 19, 94, 3.6], ['c', 81, 94, 3.6], ['c', 41.5, 151, 5], ['c', 58.5, 151, 5], ['e', 40.5, 185, 6, 3], ['e', 59.5, 185, 6, 3]],
     traps: [['p', 'M50 28 L39 35 L44 44 L50 56 L56 44 L61 35 Z']],
     rear: [['e', 31, 41, 7.5, 6.5], ['e', 69, 41, 7.5, 6.5]],
+    rotator: [['e', 39, 47, 4, 3], ['e', 61, 47, 4, 3]],
     upperback: [['p', 'M43 46 L50 57 L57 46 L59 58 L50 66 L41 58 Z']],
     lats: [['p', 'M35 47 L41 50 L46 80 L39 75 Q34 62 35 47 Z'], ['p', 'M65 47 L59 50 L54 80 L61 75 Q66 62 65 47 Z']],
     lowerback: [['r', 44.5, 70, 11, 21, 4]],
@@ -188,23 +190,32 @@
 
   function libFilter(list) {
     const q = norm(UI.libQ);
-    return list.filter(e => (UI.libG === 'Todos' || e.g === UI.libG) && (!q || norm(e.n + ' ' + e.g + ' ' + e.p.map(m => D.MUSCLES[m]).join(' ')).includes(q)) && (!UI.libFav || S.fav.includes(e.id)));
+    return list.filter(e => (UI.libG === 'Todos' || inGroup(e, UI.libG)) && (!q || norm([e.n, e.g, e.sg, e.v, ...e.p.map(m => D.MUSCLES[m]), ...(e.also || []).flat()].join(' ')).includes(q)) && (!UI.libFav || S.fav.includes(e.id)));
   }
   function libControls() {
     return `<input type="search" placeholder="🔍 Buscar ejercicio o músculo…" value="${esc(UI.libQ)}" data-in="libQ" id="libQ" autocomplete="off">
       <div class="chips">${['Todos', ...D.GROUPS].map(g => `<button class="chip ${g === UI.libG ? 'on' : ''}" data-act="libG" data-g="${esc(g)}">${g === 'Todos' ? 'Todos' : D.GROUP_ICON[g] + ' ' + esc(g)}</button>`).join('')}</div>
       <div class="chips"><button class="chip ${UI.libFav ? 'on' : ''}" data-act="libFav">★ Favoritos</button></div>`;
   }
+  // Un ejercicio puede pertenecer a otros grupos además del suyo (p. ej. el paseo del granjero)
+  const inGroup = (e, g) => e.g === g || (e.also || []).some(a => a[0] === g);
+  const subOf = (e, g) => e.g === g ? (e.sg || 'Mis ejercicios') : ((e.also || []).find(a => a[0] === g) || [])[1];
   function exGrid(list, pick) {
     if (!list.length) return '<div class="card empty">No hay ejercicios con ese filtro.</div>';
-    const groups = {};
-    list.forEach(e => (groups[e.g] = groups[e.g] || []).push(e));
-    return Object.entries(groups).map(([g, es]) => `<div class="sec">${D.GROUP_ICON[g] || '•'} ${esc(g)} <span class="dim">${es.length}</span></div><div class="grid">${es.map(e => {
+    const card = e => {
       const on = pick && pick.has(e.id);
       return `<div class="excard ${on ? 'sel' : ''}" data-act="${pick ? 'pickToggle' : 'openEx'}" data-id="${e.id}">${anim(e)}
         ${pick ? `<span class="check">${on ? '✓' : '+'}</span>` : S.fav.includes(e.id) ? '<span class="star">★</span>' : ''}
         <div class="exn">${esc(e.n)}</div><div class="exm">${esc(e.p.map(m => D.MUSCLES[m]).join(', '))}</div></div>`;
-    }).join('')}</div>`).join('');
+    };
+    const groups = UI.libG === 'Todos' ? D.GROUPS : [UI.libG];
+    return groups.map(g => {
+      const es = list.filter(e => UI.libG === 'Todos' ? e.g === g : inGroup(e, g));
+      if (!es.length) return '';
+      const subs = [...(D.SUBGROUPS[g] || []), 'Mis ejercicios'];
+      const parts = subs.map(sg => { const xs = es.filter(e => subOf(e, g) === sg || (e.also || []).some(x => x[0] === g && x[1] === sg)).sort((a, b) => (a.g !== g) - (b.g !== g)); return xs.length ? `${subs.length > 2 ? `<div class="subsec">${esc(sg)} <span class="dim">${xs.length}</span></div>` : ''}<div class="grid">${xs.map(card).join('')}</div>` : ''; }).join('');
+      return `<div class="sec">${D.GROUP_ICON[g] || '•'} ${esc(g)} <span class="dim">${es.length}</span></div>${parts}`;
+    }).join('');
   }
   function viewEjercicios() {
     const all = Object.values(EX);
@@ -330,6 +341,8 @@
     return `<div class="sh-head"><button class="icon-btn" data-act="closeSheet" aria-label="Cerrar">✕</button><b class="grow center">${esc(e.g)}</b><button class="icon-btn ${fav ? 'accent' : ''}" data-act="fav" data-id="${e.id}" aria-label="Favorito">${fav ? '★' : '☆'}</button></div>
       <div class="anim-wrap">${anim(e, 'big')}<div class="anim-ctl"><button class="chip" data-act="animPause">⏸ Pausa</button><button class="chip" data-act="animSpeed">🐢 Lento</button></div></div>
       <h2>${esc(e.n)}</h2>
+      ${e.sg ? `<div class="small muted">${esc(e.g)} · ${esc(e.sg)}${(e.also || []).length ? ' · también en ' + e.also.map(a => esc(a[1])).join(', ') : ''}</div>` : ''}
+      ${e.v ? `<div class="small mt4"><b>Variantes:</b> ${esc(e.v)}</div>` : ''}
       <div class="chips wrap">${muscleChips(e)}</div>
       <div class="legend"><span><i style="background:var(--mp)"></i>Principal</span><span><i style="background:var(--ms)"></i>Secundario</span></div>
       <div class="card">${exBodyMap(e)}</div>

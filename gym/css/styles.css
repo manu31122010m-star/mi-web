@@ -289,3 +289,10 @@ body.bro #mini { display: none; }
 .bro-in > * { max-width: 536px; margin-left: auto; margin-right: auto; }
 .bro-in .chips { padding-bottom: 8px; }
 .bro-in .btn { min-width: 52px; font-size: 18px; }
+.ex-anim .band { stroke: #ff8fb1; stroke-linecap: round; }
+.ex-anim .bandc { fill: none; stroke: #ff8fb1; stroke-width: 3; }
+.ex-anim .ballc { fill: #e0a458; stroke: #9a6a2c; stroke-width: 2; }
+.ex-anim .bag { fill: #8a7a5c; }
+.ex-anim .tire { stroke: #1d2329; stroke-linecap: round; }
+.ex-anim .water { stroke: var(--accent); stroke-width: 2; opacity: .7; }
+.subsec { font-size: 13px; font-weight: 700; color: var(--accent); margin: 14px 4px 8px; }

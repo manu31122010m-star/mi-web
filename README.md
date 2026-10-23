@@ -23,7 +23,7 @@ Dos apps web instalables (PWA), sin dependencias ni compilación. Funcionan sin 
 
 App de gimnasio con tu logo como icono en la pantalla de inicio, inspirada en apps como Symmetry, Strong o Hevy.
 
-- **76 ejercicios** (todas las máquinas de tu gimnasio + peso libre) con **animación** del movimiento sobre la máquina, músculos que trabaja resaltados, mapa muscular delante/detrás, pasos de técnica y errores comunes.
+- **287 ejercicios** organizados por grupo y subgrupo muscular (pectoral superior, deltoides posterior, glúteo medio, tibial…), incluida la lista completa con variantes por material (barra, mancuernas, polea, máquina, kettlebell, banda, peso corporal) y un grupo de **cuerpo completo y funcional**, con **animación** del movimiento sobre la máquina, músculos que trabaja resaltados, mapa muscular delante/detrás, pasos de técnica y errores comunes.
 - **Rutinas** propias por día de la semana: series, repeticiones objetivo, descanso y notas por ejercicio. Plantillas opcionales (empuje, tirón, pierna, torso, glúteo, full body).
 - **Entreno en vivo**: cronómetro, valores de la sesión anterior, serie de calentamiento/drop/fallo, descanso automático con sonido y vibración, pantalla siempre encendida y aviso de récords.
 - **Inicio**: semana y racha y rutina de hoy.
