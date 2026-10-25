@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0e0d13">
+  <meta name="description" content="Sesiones de concentración que bloquean tus apps de distracción, límites diarios por app y webs bloqueadas.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Foco">
+  <title>Foco</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon-32.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <main id="view"></main>
+  <nav class="nav"></nav>
+  <div id="sheet" hidden></div>
+  <section id="session" class="full" hidden></section>
+  <section id="block" class="full" hidden></section>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="js/apps.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

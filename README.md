@@ -1,4 +1,4 @@
-# Mis apps: Estudio, FOCUS y Mi Gym
+# Mis apps: Estudio, FOCUS, Mi Gym y Foco
 
 Dos apps web instalables (PWA), sin dependencias ni compilación. Funcionan sin conexión y guardan los datos solo en el dispositivo.
 
@@ -30,6 +30,16 @@ App de gimnasio con tu logo como icono en la pantalla de inicio, inspirada en ap
 - **GymBro**: asistente sin conexión que crea rutinas y planes semanales, te dice qué entrenar hoy según tu historial, explica la técnica, da alternativas, analiza tu progreso, calcula el 1RM y resuelve dudas (series, descanso, proteína, creatina, agujetas, definir o ganar músculo).
 - **Historial y progreso**: calendario, volumen semanal, 1RM estimado por ejercicio, récords y peso corporal.
 - **Perfil**: objetivo semanal, descanso por defecto, sonido/vibración y copia de seguridad.
+
+## 🧠 Foco (`foco/`)
+
+Bloqueador de distracciones con el diseño de la app Focus: tres pestañas (Foco, Apps y Ajustes).
+
+- **Foco**: elige la duración (15 min a 3 h u otra), mira qué se bloquea y empieza. Pantalla de sesión con cuenta atrás, tu motivo, pantalla siempre encendida, aviso si sales y **modo estricto** (no se puede parar antes de tiempo; sin él, se para manteniendo pulsado). Debajo, **Hoy**: barra de cada límite diario (amarilla al 80 %, roja y «Bloqueada hasta mañana» al gastarlo).
+- **Apps**: +40 apps que suelen distraer (redes, vídeo, juegos, compras) y las tuyas. Activa las de tu lista, ponles un límite diario con avisos antes de que se acabe y ábrelas desde Foco: cuenta el tiempo al volver y te frena si están bloqueadas.
+- **Ajustes**: tu motivo (sale en la pantalla de bloqueo), avisos, webs bloqueadas en Chrome (las de tus apps y las que añadas), permisos, modo estricto, copia de seguridad y actualizaciones.
+
+> Una web no puede cerrar otras apps ni leer su tiempo de uso real: dentro de la app hay una guía para activar el bloqueo del sistema (Bienestar digital / Tiempo de uso) con las mismas apps y límites.
 
 ## Uso
 
