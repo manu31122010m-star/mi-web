@@ -282,11 +282,13 @@
         <label class="li"><div class="grow">Sonido al acabar el descanso</div><input type="checkbox" class="sw" data-in="sound" ${p.sound ? 'checked' : ''}></label>
         <label class="li"><div class="grow">Vibración</div><input type="checkbox" class="sw" data-in="vibrate" ${p.vibrate ? 'checked' : ''}></label>
       </div>
+      <div class="sec">Actualizaciones</div>
+      ${window.APPUPDATE ? APPUPDATE.cardHTML() : ''}
       <div class="sec">Copia de seguridad</div>
       <div class="card"><div class="small muted">Tus datos solo se guardan en este dispositivo. Exporta una copia de vez en cuando.</div>
         <div class="row mt8"><button class="btn grow" data-act="export">⬇️ Exportar</button><label class="btn grow">⬆️ Importar<input type="file" accept="application/json,.json" id="importIn" hidden></label></div>
         <button class="btn danger block mt8" data-act="reset">Borrar todos los datos</button></div>
-      <div class="small dim center mt8">Hecho para organizar tus entrenos · v1</div>`;
+      <div class="small dim center mt8">Mi Gym · v<span data-upd-ver>${(window.APPUPDATE && APPUPDATE.version) || '1'}</span></div>`;
   }
 
   // ---------- GymBro ----------

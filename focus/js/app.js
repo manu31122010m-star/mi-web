@@ -1357,6 +1357,8 @@ Datos actuales del usuario (JSON):
         <select id="stEngine" data-in="stEngine"><option value="local" ${st.aiEngine !== 'claude' ? 'selected' : ''}>⚡ Sin conexión (en tu móvil, gratis)</option>${aiState === 'ready' ? `<option value="claude" ${st.aiEngine === 'claude' ? 'selected' : ''}>✨ Claude (más completo, usa tu cuenta)</option>` : ''}</select>
         <p class="li-sub">${aiState === 'ready' ? 'Con Claude responde a cualquier pregunta y analiza fotos de tus platos; consume uso de tu cuenta de Claude.' : 'El asistente funciona sin internet y sin ninguna cuenta.'}</p>
       </div>
+      <div class="sec-title">Actualizaciones</div>
+      ${window.APPUPDATE ? APPUPDATE.cardHTML() : ''}
       <div class="sec-title">Datos</div>
       <div class="card">
         <div class="li-sub">Todo se guarda en este dispositivo (${r1(used / 1024)} KB usados).</div>
@@ -1366,7 +1368,7 @@ Datos actuales del usuario (JSON):
         <button class="btn block mt" data-act="clearChat">💬 Borrar conversación del asistente</button>
         <button class="btn danger block mt" data-act="resetAll">Borrar todos los datos</button>
       </div>
-      <p class="center dim" style="font-size:12px">FOCUS · v1.0</p>`;
+      <p class="center dim" style="font-size:12px">FOCUS · v<span data-upd-ver>${(window.APPUPDATE && APPUPDATE.version) || '1'}</span></p>`;
   }
 
   // =====================================================================

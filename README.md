@@ -31,6 +31,10 @@ App de gimnasio con tu logo como icono en la pantalla de inicio, inspirada en ap
 - **Historial y progreso**: calendario, volumen semanal, 1RM estimado por ejercicio, récords y peso corporal.
 - **Perfil**: objetivo semanal, descanso por defecto, sonido/vibración y copia de seguridad.
 
+## 🔄 Actualizaciones y mantenimiento
+
+Cada app comprueba su `version.json` al abrirse y cada 30 min: si hay una versión nueva muestra **«🆕 Nueva versión · Actualizar»**. En Ajustes/Perfil se ve la versión, las novedades y el botón **«Buscar actualizaciones»**. El proceso de mantenimiento diario está en [MANTENIMIENTO.md](MANTENIMIENTO.md).
+
 ## Uso
 
 ```bash

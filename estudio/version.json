@@ -1,0 +1,26 @@
+{
+  "version": "1.0.1",
+  "date": "2026-10-25",
+  "notes": [
+    "Botón «Actualizar»: la app avisa cuando hay una versión nueva",
+    "En Ajustes/Perfil: ver la versión, novedades y buscar actualizaciones"
+  ],
+  "history": [
+    {
+      "version": "1.0.1",
+      "date": "2026-10-25",
+      "notes": [
+        "Botón «Actualizar»: la app avisa cuando hay una versión nueva",
+        "En Ajustes/Perfil: ver la versión, novedades y buscar actualizaciones"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-10-22",
+      "notes": [
+        "Horario semanal, tareas, asignaturas y exámenes",
+        "Modo concentración y asistente sin conexión"
+      ]
+    }
+  ]
+}
