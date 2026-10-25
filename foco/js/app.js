@@ -2,7 +2,6 @@
 (function () {
   'use strict';
   const KEY = 'foco-app-v1';
-  const VERSION = '1.0';
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uid = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -174,11 +173,10 @@
       </div>
       <div class="card">
         <div class="label">Versión</div>
-        <p style="font-size:17px;margin:0">Foco 🧠 ${VERSION}</p>
+        ${window.APPUPDATE ? APPUPDATE.cardHTML('') : '<p class="muted">Foco 🧠</p>'}
         <p class="note">Foco mira solo si hay versión nueva al abrirse.</p>
-        <button class="btn ghost" style="width:auto;display:inline-block;margin-top:12px;padding:12px 18px" data-act="update">Buscar actualizaciones</button>
       </div>
-      <p class="foot">Foco 🧠 · gratis y sin anuncios</p>`;
+      <p class="foot">Foco 🧠 v<span data-upd-ver>${(window.APPUPDATE && APPUPDATE.version) || '1'}</span> · gratis y sin anuncios</p>`;
   }
 
   // ---------- hojas ----------
@@ -431,13 +429,6 @@
       const i = document.createElement('input'); i.type = 'file'; i.accept = 'application/json,.json';
       i.onchange = () => { const f = i.files[0]; if (!f) return; f.text().then(t => { const d = JSON.parse(t); if (!d || !d.v) throw 0; S = Object.assign(fresh(), d); save(); render(); toast('Copia importada'); }).catch(() => toast('Ese archivo no es una copia de Foco')); };
       i.click();
-    },
-    update: async () => {
-      const reg = await navigator.serviceWorker?.getRegistration();
-      if (!reg) return toast('Abre Foco por https para las actualizaciones');
-      toast('Buscando…');
-      await reg.update().catch(() => {});
-      if (reg.installing || reg.waiting) { toast('Hay versión nueva: reiniciando…'); setTimeout(() => location.reload(), 1200); } else toast('Ya tienes la última versión');
     }
   };
 

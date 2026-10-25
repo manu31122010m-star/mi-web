@@ -41,6 +41,10 @@ Bloqueador de distracciones con el diseño de la app Focus: tres pestañas (Foco
 
 > Una web no puede cerrar otras apps ni leer su tiempo de uso real: dentro de la app hay una guía para activar el bloqueo del sistema (Bienestar digital / Tiempo de uso) con las mismas apps y límites.
 
+## 🔄 Actualizaciones y mantenimiento
+
+Cada app comprueba su `version.json` al abrirse y cada 30 min: si hay una versión nueva muestra **«🆕 Nueva versión · Actualizar»**. En Ajustes/Perfil se ve la versión, las novedades y el botón **«Buscar actualizaciones»**. El proceso de mantenimiento diario está en [MANTENIMIENTO.md](MANTENIMIENTO.md).
+
 ## Uso
 
 ```bash

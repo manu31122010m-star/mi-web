@@ -1,0 +1,41 @@
+{
+  "version": "1.2.1",
+  "date": "2026-10-25",
+  "notes": [
+    "Botón «Actualizar»: la app avisa cuando hay una versión nueva",
+    "En Ajustes/Perfil: ver la versión, novedades y buscar actualizaciones"
+  ],
+  "history": [
+    {
+      "version": "1.2.1",
+      "date": "2026-10-25",
+      "notes": [
+        "Botón «Actualizar»: la app avisa cuando hay una versión nueva",
+        "En Ajustes/Perfil: ver la versión, novedades y buscar actualizaciones"
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-10-23",
+      "notes": [
+        "287 ejercicios por grupo y subgrupo con animación, técnica y variantes",
+        "Nuevo grupo de cuerpo completo y funcional"
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-10-22",
+      "notes": [
+        "Asistente GymBro",
+        "Inicio y Perfil simplificados"
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-10-22",
+      "notes": [
+        "Primera versión: rutinas, ejercicios animados y entreno en vivo"
+      ]
+    }
+  ]
+}
