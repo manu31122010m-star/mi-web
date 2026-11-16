@@ -1,10 +1,17 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "date": "2026-11-16",
   "notes": [
-    "Tus 3 canales ya configurados: Mundo Rarezas, IA de Novato a Pro y Luis: De Cero a Millonario"
+    "Tus 3 canales aparecen ya en la app con sus datos públicos, sin iniciar sesión"
   ],
   "history": [
+    {
+      "version": "1.0.2",
+      "date": "2026-11-16",
+      "notes": [
+        "Tus 3 canales aparecen ya en la app con sus datos públicos, sin iniciar sesión"
+      ]
+    },
     {
       "version": "1.0.1",
       "date": "2026-11-16",

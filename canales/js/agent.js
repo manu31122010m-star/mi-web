@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   const DAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-  const STOP = new Set('a al algo ante así aunque bien cada como con contra cual cuando de del desde donde dos el ella ellos en entre era es esa ese eso esta este esto estos fue ha hacer han hasta hay la las le les lo los más me mi mis mucho muy nada ni no nos o os para pero poco por porque que qué quien se ser si sí sin sobre son su sus también te tengo ti tiene todo tu tus un una uno unos y ya yo vs the of to and in for is on with you your my how what this that it i are be at from new video videos vídeo vídeos parte part ep episodio shorts short official oficial'.split(' '));
+  const STOP = new Set('a al algo ante así aunque bien cada como con contra cual cuando de del desde donde dos el ella ellos en entre era es esa ese eso esta este esto estos fue ha hacer han hasta hay la las le les lo los más me mi mis mucho muy nada ni no nos o os para pero poco por porque que qué quien se ser si sí sin sobre son su sus también te tengo ti tiene todo tu tus un una uno unos y ya yo vs the of to and in for is on with you your my how what this that it i are be at from new video videos vídeo vídeos parte part ep episodio shorts short official oficial cap capítulo quedan así día'.split(' '));
 
   const fmt = v => { v = Number(v) || 0; if (v >= 1e9) return (v / 1e9).toFixed(1).replace('.0', '') + ' mil M'; if (v >= 1e6) return (v / 1e6).toFixed(1).replace('.0', '') + ' M'; if (v >= 1e4) return Math.round(v / 1e3) + ' mil'; if (v >= 1e3) return (v / 1e3).toFixed(1).replace('.0', '') + ' mil'; return String(Math.round(v)); };
   const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -30,7 +30,7 @@
       const d = new Date(v.published);
       const k = d.getDay(), h = d.getHours();
       (byDay[k] = byDay[k] || []).push(v.views);
-      (byHour[h] = byHour[h] || []).push(v.views);
+      if (!v.noTime) (byHour[h] = byHour[h] || []).push(v.views);
     });
     const best = obj => Object.entries(obj).filter(([, a]) => a.length).map(([k, a]) => [Number(k), a.reduce((x, y) => x + y, 0) / a.length, a.length]).sort((a, b) => b[1] - a[1])[0];
     const bd = best(byDay), bh = best(byHour);
@@ -44,7 +44,7 @@
     const lastAge = ageD(vids[0]);
     const wordsTop = topWords([...outliers, top].filter(Boolean).map(v => v.title).join(' '), 6);
     return {
-      median: med, avg: views.reduce((a, b) => a + b, 0) / views.length, last28, perWeek: last28 / 4,
+      median: med, avg: views.reduce((a, b) => a + b, 0) / views.length, last28, perWeek: last28 / (Math.min(28, Math.max(7, Math.ceil(Math.max(...vids.filter(v => ageD(v) <= 28).map(ageD), 1)))) / 7),
       bestDay: bd ? DAYS[bd[0]] : null, bestDayN: bd ? bd[0] : null, bestHour: bh ? bh[0] : null,
       top, outliers, flops, eng, trend, lastAge, shorts: shorts.length, longs: longs.length,
       shortsMed: median(shorts.map(v => v.views)), longsMed: median(longs.map(v => v.views)), wordsTop
@@ -314,7 +314,7 @@
     const out = [];
     if (a.lastAge > 10) out.push(`⏰ Llevas **${Math.round(a.lastAge)} días** sin publicar. Los canales que publican cada semana crecen más rápido: programa uno ya.`);
     if (a.perWeek < 1) out.push(`📅 Publicas ~${a.perWeek.toFixed(1)} vídeos/semana. Objetivo: **1 largo + 3 Shorts por semana**.`);
-    if (a.bestDay) out.push(`📈 Tus vídeos publicados en **${a.bestDay}** sobre las **${a.bestHour}:00** son los que más visitas tienen. Programa ahí.`);
+    if (a.bestDay && (ch.recent || []).length >= 4) out.push(`📈 Tus vídeos publicados en **${a.bestDay}**${a.bestHour != null ? ` sobre las **${a.bestHour}:00**` : ''} son los que más visitas tienen. Programa ahí.`);
     if (a.outliers.length) out.push(`🔥 «${a.outliers[0].title}» hizo **${(a.outliers[0].views / Math.max(1, a.median)).toFixed(1)}×** tu media: haz una segunda parte o una versión mejorada.`);
     if (a.shorts && a.longs && a.shortsMed > a.longsMed * 1.5) out.push(`⚡ Tus Shorts tienen ${fmt(a.shortsMed)} visitas de mediana frente a ${fmt(a.longsMed)} los largos: úsalos de escaparate con enlace al vídeo largo.`);
     if (!a.shorts) out.push('⚡ No tienes Shorts recientes: son la forma más rápida de conseguir suscriptores nuevos. Saca 3 de tu mejor vídeo.');

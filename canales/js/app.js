@@ -54,6 +54,7 @@
   const othersOf = slot => S.channels.filter((c, i) => i !== slot).map(c => c.title ? c : { title: c.expect.name, handle: c.expect.handle });
   const cc = i => `--cc:${(S.channels[i] && S.channels[i].color) || COLORS[i]}`;
   const connected = i => !!YT.tokenFor(i);
+  const ro = c => !!(c && (c.demo || c.pub)); // ejemplo o datos públicos: no se puede subir ni responder
   const kws = ch => String(ch.keywords || ch.niche || '').split(',').map(s => s.trim()).filter(Boolean);
 
   // ---------- utilidades de interfaz ----------
@@ -144,18 +145,18 @@
       if (!ch.id && exp && info.handle && info.handle.toLowerCase() !== exp.handle.toLowerCase() && !confirm(`Has entrado con «${info.title}» (${info.handle}), pero este hueco es para ${exp.name} (${exp.handle}). ¿Usarlo igualmente?`)) { YT.signOut(slot); throw new Error(`Vuelve a intentarlo y elige ${exp.name} en la ventana de Google.`); }
       if (ch.id && ch.id !== info.id && !confirm(`Has entrado con «${info.title}», no con «${ch.title}». ¿Sustituir el canal ${slot + 1}?`)) { YT.signOut(slot); throw new Error('Conexión cancelada.'); }
       if (ch.id !== info.id) { ch.recent = []; delete S.viral[slot]; }
-      Object.assign(ch, info, { demo: false });
+      Object.assign(ch, info, { demo: false, pub: false });
       if (!ch.niche && info.keywords) ch.keywords = info.keywords.replace(/"/g, '').split(/\s+/).slice(0, 6).join(', ');
       save();
       toast(`✅ ${info.title} conectado`, r.partial ? 'Faltan permisos: algunas funciones no irán.' : 'Ya puedes subir vídeos y responder comentarios.');
       await refresh(slot, true);
-      if (live().filter(c => !c.demo).length === 1) completeMission('conectar', true);
+      if (live().filter(c => !ro(c)).length === 1) completeMission('conectar', true);
     } catch (e) { toast('No se pudo conectar', errMsg(e)); }
     UI.busy['c' + slot] = false; render();
   }
   async function refresh(slot, quiet) {
     const ch = S.channels[slot];
-    if (!ch.title || ch.demo) return;
+    if (!ch.title || ro(ch)) return;
     if (!connected(slot)) { if (!quiet) toast('Sesión caducada', `Vuelve a entrar en ${ch.title} (las sesiones de Google duran 1 hora).`); return; }
     UI.busy['r' + slot] = true; render();
     try {
@@ -206,12 +207,12 @@
     }
     const vals = (ch.recent || []).slice(0, 12).reverse().map(v => v.views);
     const a = AGENT.analyze(ch);
-    const exp = !ch.demo && !connected(i);
+    const exp = !ro(ch) && !connected(i);
     return `<div class="ch" style="${cc(i)}" data-act="chSheet" data-slot="${i}">
       ${avatar(ch)}
       <div class="info">
         <div class="name">${esc(ch.title)}</div>
-        <div class="meta">${ch.demo ? '<span class="badge demo">Ejemplo</span> ' : exp ? '<span class="badge">Sesión caducada</span> ' : ''}${esc(ch.handle || '')}</div>
+        <div class="meta">${ch.demo ? '<span class="badge demo">Ejemplo</span> ' : ch.pub ? '<span class="badge ok">Público</span> ' : exp ? '<span class="badge">Sesión caducada</span> ' : ''}${esc(ch.handle || '')}</div>
         <div class="nums"><span><b>${ch.hiddenSubs ? '—' : fmt(ch.subs)}</b> <span class="muted">subs</span></span><span><b>${a ? fmt(a.median) : '—'}</b> <span class="muted">visitas/vídeo</span></span></div>
       </div>
       ${spark(vals, ch.color)}
@@ -279,16 +280,16 @@
   function chSheet(i) {
     const ch = S.channels[i];
     const a = AGENT.analyze(ch);
-    const exp = !ch.demo && !connected(i);
+    const exp = !ro(ch) && !connected(i);
     openSheet(`${sheetHead(esc(ch.title))}
-      <div class="row" style="${cc(i)};gap:12px;margin:6px 0 12px">${avatar(ch)}<div class="grow"><div class="muted small">${esc(ch.handle || '')}${ch.demo ? ' · <span class="badge demo">Ejemplo</span>' : ''}</div><div><b>${fmt(ch.subs)}</b> subs · <b>${fmt(ch.views)}</b> visitas · <b>${ch.videos || 0}</b> vídeos</div></div></div>
-      ${a ? `<div class="stats3" style="margin:0 0 6px"><div><b>${fmt(a.median)}</b><span>visitas/vídeo</span></div><div><b>${a.perWeek.toFixed(1)}</b><span>vídeos/semana</span></div><div><b>${a.bestDay ? a.bestDay.slice(0, 3) + ' ' + a.bestHour + 'h' : '—'}</b><span>mejor momento</span></div></div>` : ''}
+      <div class="row" style="${cc(i)};gap:12px;margin:6px 0 12px">${avatar(ch)}<div class="grow"><div class="muted small">${esc(ch.handle || '')}${ch.demo ? ' · <span class="badge demo">Ejemplo</span>' : ch.pub ? ` · <span class="badge ok">Datos públicos · ${esc(PUB_AT)}</span>` : ''}</div><div><b>${fmt(ch.subs)}</b> subs · <b>${fmt(ch.views)}</b> visitas · <b>${ch.videos || 0}</b> vídeos</div></div></div>
+      ${a ? `<div class="stats3" style="margin:0 0 6px"><div><b>${fmt(a.median)}</b><span>visitas/vídeo</span></div><div><b>${a.perWeek.toFixed(1)}</b><span>vídeos/semana</span></div><div><b>${a.bestDay ? a.bestDay.slice(0, 3) + (a.bestHour != null ? ' ' + a.bestHour + 'h' : '') : '—'}</b><span>mejor momento</span></div></div>` : ''}
       <div class="sec" style="margin-top:14px"><h2>Consejos del agente</h2></div>
       <div class="card">${AGENT.insights(ch).map(t => `<div class="li small"><div class="grow">${mdLite(t)}</div></div>`).join('')}</div>
       <div class="sec"><h2>Últimos vídeos</h2></div>
       <div class="card">${(ch.recent || []).slice(0, 8).map(v => vidRow(v, i, a)).join('') || '<div class="empty">Sin vídeos todavía.</div>'}</div>
       <div class="foot">
-        ${ch.demo ? `<button class="btn primary" data-act="connect" data-slot="${i}">Conectar mi canal aquí</button>` : exp ? `<button class="btn primary" data-act="connect" data-slot="${i}">🔑 Volver a entrar</button>` : `<button class="btn" data-act="refresh" data-slot="${i}">${UI.busy['r' + i] ? 'Actualizando…' : '🔄 Actualizar'}</button><a class="btn" href="https://studio.youtube.com/channel/${esc(ch.id)}" target="_blank" rel="noopener">YouTube Studio ↗</a>`}
+        ${ch.pub ? `<a class="btn" href="https://www.youtube.com/${esc(ch.handle)}" target="_blank" rel="noopener">Ver canal ↗</a><button class="btn primary" data-act="connect" data-slot="${i}">🔑 Iniciar sesión</button>` : ch.demo ? `<button class="btn primary" data-act="connect" data-slot="${i}">Conectar mi canal aquí</button>` : exp ? `<button class="btn primary" data-act="connect" data-slot="${i}">🔑 Volver a entrar</button>` : `<button class="btn" data-act="refresh" data-slot="${i}">${UI.busy['r' + i] ? 'Actualizando…' : '🔄 Actualizar'}</button><a class="btn" href="https://studio.youtube.com/channel/${esc(ch.id)}" target="_blank" rel="noopener">YouTube Studio ↗</a>`}
       </div>`);
   }
   function vidRow(v, slot, a) {
@@ -405,7 +406,7 @@
   function viewSubir() {
     if (!UI.up) newUp(UI.agentCh);
     const u = UI.up, ch = S.channels[u.slot];
-    const ok = ch.title && !ch.demo && connected(u.slot);
+    const ok = ch.title && !ro(ch) && connected(u.slot);
     const ts = AGENT.scoreTitle(u.title, { keywords: kws(ch) });
     const pls = UI.playlists[u.slot];
     if (ok && !pls) loadPlaylists(u.slot);
@@ -419,7 +420,7 @@
     }
     return `<header class="top"><div class="grow"><h1>Subir vídeo</h1><div class="sub">Directo a tu canal, con SEO del agente</div></div>${u.planId ? '<span class="badge">Del tablero</span>' : ''}</header>
       <div class="pick">${S.channels.map((c, i) => `<button class="${u.slot === i ? 'on' : ''}" style="${cc(i)}" data-act="upSlot" data-slot="${i}">${avatar(c)}<span>${esc(chName(i))}</span></button>`).join('')}</div>
-      ${!ch.title || ch.demo ? `<div class="note">Este hueco no tiene un canal real conectado. <button class="btn sm primary" data-act="connect" data-slot="${u.slot}" style="margin-left:6px">Conectar</button></div>` : !connected(u.slot) ? `<div class="note">La sesión de ${esc(ch.title)} ha caducado (duran 1 hora). <button class="btn sm primary" data-act="connect" data-slot="${u.slot}" style="margin-left:6px">🔑 Entrar</button></div>` : ''}
+      ${!ch.title || ro(ch) ? `<div class="note">${ch.pub ? `Para subir vídeos a ${esc(ch.title)} inicia sesión con Google.` : 'Este hueco no tiene un canal real conectado.'} <button class="btn sm primary" data-act="connect" data-slot="${u.slot}" style="margin-left:6px">Conectar</button></div>` : !connected(u.slot) ? `<div class="note">La sesión de ${esc(ch.title)} ha caducado (duran 1 hora). <button class="btn sm primary" data-act="connect" data-slot="${u.slot}" style="margin-left:6px">🔑 Entrar</button></div>` : ''}
 
       <div style="margin-top:14px">${u.file
         ? `<video class="preview" src="${esc(u.url)}" controls playsinline muted></video><div class="row small" style="justify-content:space-between;margin-top:6px"><span class="muted ell" style="max-width:70%">${esc(u.file.name)} · ${(u.file.size / 1048576).toFixed(0)} MB</span><button class="btn sm" data-act="pickVideo">Cambiar</button></div>`
@@ -437,7 +438,7 @@
         <label class="f"><span>Visibilidad</span><select data-in="upPrivacy">${[['private', '🔒 Privado'], ['unlisted', '🔗 Oculto'], ['public', '🌍 Público'], ['schedule', '⏰ Programar']].map(([k, v]) => `<option value="${k}" ${u.privacy === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
         <label class="f"><span>Categoría</span><select data-in="upCat">${Object.entries(CATS).map(([k, v]) => `<option value="${k}" ${u.cat === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       </div>
-      ${u.privacy === 'schedule' ? `<label class="f"><span>Publicar el</span><input type="datetime-local" data-in="upWhen" value="${esc(u.when)}"></label>${(() => { const a = AGENT.analyze(ch); return a && a.bestDay ? `<p class="small muted">💡 Tu mejor momento: <b>${a.bestDay} a las ${a.bestHour}:00</b>.</p>` : ''; })()}` : ''}
+      ${u.privacy === 'schedule' ? `<label class="f"><span>Publicar el</span><input type="datetime-local" data-in="upWhen" value="${esc(u.when)}"></label>${(() => { const a = AGENT.analyze(ch); return a && a.bestDay ? `<p class="small muted">💡 Tu mejor momento: <b>${a.bestDay}${a.bestHour != null ? ' a las ' + a.bestHour + ':00' : ''}</b>.</p>` : ''; })()}` : ''}
       <label class="f"><span>Lista de reproducción</span><select data-in="upPlaylist"><option value="">Ninguna</option>${(pls || []).map(p => `<option value="${esc(p.id)}" ${u.playlist === p.id ? 'selected' : ''}>${esc(p.title)} (${p.count})</option>`).join('')}</select></label>
       <div class="li" style="margin-top:10px"><div class="grow"><div class="t small">¿Es contenido para niños?</div><div class="s">Obligatorio por ley (COPPA). Si no lo es, déjalo desactivado.</div></div><label class="switch"><input type="checkbox" data-in="upKids" ${u.kids ? 'checked' : ''}><span></span></label></div>
 
@@ -642,9 +643,9 @@
   function agComentarios() {
     const slot = UI.agentCh, ch = S.channels[slot];
     const st = UI.cm[slot];
-    const can = ch.title && !ch.demo && connected(slot);
+    const can = ch.title && !ro(ch) && connected(slot);
     let body = '';
-    if (!ch.title || ch.demo) body = `<div class="card empty"><div class="e">💬</div>Conecta este canal para leer y responder comentarios desde aquí.<br><button class="btn sm primary" style="margin-top:10px" data-act="connect" data-slot="${slot}">Conectar</button></div>`;
+    if (!ch.title || ro(ch)) body = `<div class="card empty"><div class="e">💬</div>Conecta este canal para leer y responder comentarios desde aquí.<br><button class="btn sm primary" style="margin-top:10px" data-act="connect" data-slot="${slot}">Conectar</button></div>`;
     else if (!can) body = `<div class="card empty"><div class="e">🔑</div>La sesión ha caducado.<br><button class="btn sm primary" style="margin-top:10px" data-act="connect" data-slot="${slot}">Volver a entrar</button></div>`;
     else if (!st) body = `<div class="card empty"><div class="e">💬</div>Responder rápido a los comentarios hace que YouTube muestre más tus vídeos.<br><button class="btn sm primary" style="margin-top:10px" data-act="loadComments">Cargar comentarios</button></div>`;
     else if (st.loading) body = `<div class="card">${[1, 2, 3].map(() => '<div class="sk" style="height:70px;margin:8px 0"></div>').join('')}</div>`;
@@ -727,7 +728,7 @@
       return { content: `Títulos para **${topic}** (puntuación de 0 a 100):\n` + r.map(x => `- ${x.t} — **${x.score}**`).join('\n'), acts: [{ act: 'ideasFrom', t: topic, slot, label: '✨ Más títulos' }] };
     }
     if (/short/.test(t)) return { content: a && a.top ? `Shorts que puedes sacar de tu vídeo más visto («${a.top.title}»):\n` + AGENT.shortIdeas(a.top).map(s => '- ' + s).join('\n') + '\n\nPublica **3 por semana**: los Shorts son lo que más suscriptores nuevos trae.' : 'Conecta el canal para sacar Shorts de tus mejores vídeos.' };
-    if (/cu[aá]ndo|hora|d[ií]a.*public/.test(t)) return { content: L.map(c => { const x = AGENT.analyze(c); return `- **${c.title}**: ${x && x.bestDay ? `${x.bestDay} sobre las ${x.bestHour}:00 (según tus últimos ${c.recent.length} vídeos)` : 'aún no hay datos suficientes'}`; }).join('\n') + '\n\nProgramar a esa hora hace que tus suscriptores lo vean nada más salir, y eso le dice a YouTube que lo recomiende.' };
+    if (/cu[aá]ndo|hora|d[ií]a.*public/.test(t)) return { content: L.map(c => { const x = AGENT.analyze(c); return `- **${c.title}**: ${x && x.bestDay ? `${x.bestDay}${x.bestHour != null ? ' sobre las ' + x.bestHour + ':00' : ''} (según tus últimos ${c.recent.length} vídeos)` : 'aún no hay datos suficientes'}`; }).join('\n') + '\n\nProgramar a esa hora hace que tus suscriptores lo vean nada más salir, y eso le dice a YouTube que lo recomiende.' };
     if (/rescat|flop|peor|no funciona/.test(t)) return { content: a && a.flops.length ? 'Vídeos por debajo de tu media que merece la pena rescatar cambiando título o miniatura:\n' + a.flops.map(v => `- «${v.title}» (${fmt(v.views)} visitas, tu media es ${fmt(a.median)})`).join('\n') : '¡No veo vídeos claramente por debajo de tu media! 👌' };
     if (/comentario/.test(t)) return { content: 'Responder en la primera hora multiplica los comentarios y el alcance. Te preparo respuestas para cada uno:', acts: [{ act: 'go', v: 'agente', tab: 'comentarios', label: '💬 Responder comentarios' }] };
     if (/promo|compart|redes|difund/.test(t)) return { content: 'Te he preparado textos para X, Instagram/TikTok, WhatsApp, Comunidad, comentario fijado y Reddit, listos para copiar:', acts: [{ act: 'go', v: 'agente', tab: 'promo', label: '📣 Kit de promoción' }] };
@@ -793,8 +794,8 @@ Datos (JSON):
 
       <div class="sec"><h2>Mis 3 canales</h2></div>
       ${S.channels.map((c, i) => `<div class="card" style="${cc(i)}">
-        <div class="row" style="flex-wrap:nowrap;gap:12px">${avatar(c)}<div class="grow" style="min-width:0"><b class="ell" style="display:block">${esc(chName(i))}</b><span class="small muted">${c.demo ? 'Datos de ejemplo' : c.title ? (connected(i) ? '🟢 Sesión activa' : '⚪ Sesión caducada') : 'Sin conectar'}</span></div>
-          ${c.title && !c.demo ? `<button class="btn sm" data-act="connect" data-slot="${i}">${connected(i) ? 'Cambiar' : 'Entrar'}</button><button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Desconectar">⏏</button>` : `<button class="btn sm primary" data-act="connect" data-slot="${i}">${UI.busy['c' + i] ? '…' : 'Conectar'}</button>${c.demo ? `<button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Quitar ejemplo">✕</button>` : ''}`}</div>
+        <div class="row" style="flex-wrap:nowrap;gap:12px">${avatar(c)}<div class="grow" style="min-width:0"><b class="ell" style="display:block">${esc(chName(i))}</b><span class="small muted">${c.demo ? 'Datos de ejemplo' : c.pub ? 'Datos públicos (inicia sesión para subir)' : c.title ? (connected(i) ? '🟢 Sesión activa' : '⚪ Sesión caducada') : 'Sin conectar'}</span></div>
+          ${c.title && !ro(c) ? `<button class="btn sm" data-act="connect" data-slot="${i}">${connected(i) ? 'Cambiar' : 'Entrar'}</button><button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Desconectar">⏏</button>` : `<button class="btn sm primary" data-act="connect" data-slot="${i}">${UI.busy['c' + i] ? '…' : 'Conectar'}</button>${c.demo && !c.pub ? `<button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Quitar ejemplo">✕</button>` : ''}`}</div>
         <label class="f"><span>Nicho</span><input type="text" data-in="chNiche" data-slot="${i}" value="${esc(c.niche)}" placeholder="p. ej. recetas fáciles"></label>
         <label class="f"><span>Palabras clave (comas)</span><input type="text" data-in="chKw" data-slot="${i}" value="${esc(c.keywords)}" placeholder="airfryer, cenas rápidas, meal prep"></label>
         <div class="grid2"><label class="f"><span>Objetivo de subs</span><input type="number" min="0" data-in="chGoal" data-slot="${i}" value="${c.goal || ''}" placeholder="auto"></label><label class="f"><span>Vídeos/semana</span><input type="number" min="1" max="21" data-in="chWeek" data-slot="${i}" value="${c.perWeek || 1}"></label></div>
@@ -868,7 +869,7 @@ Datos (JSON):
     closeSheet() { closeSheet(); },
     connect(el) { closeSheet(); connect(Number(el.dataset.slot)); },
     refresh(el) { closeSheet(); refresh(Number(el.dataset.slot)); },
-    refreshAll() { let n = 0; S.channels.forEach((c, i) => { if (c.title && !c.demo && connected(i)) { n++; refresh(i, true); } }); toast(n ? '🔄 Actualizando…' : 'Vuelve a entrar en tus canales', n ? '' : 'Las sesiones de Google caducan cada hora.'); },
+    refreshAll() { let n = 0; S.channels.forEach((c, i) => { if (c.title && !ro(c) && connected(i)) { n++; refresh(i, true); } }); toast(n ? '🔄 Actualizando…' : 'Vuelve a entrar en tus canales', n ? '' : 'Las sesiones de Google caducan cada hora.'); },
     disconnect(el) { disconnect(Number(el.dataset.slot)); },
     demo() { loadDemo(); closeSheet(); },
     chSheet(el) { chSheet(Number(el.dataset.slot)); },
@@ -949,7 +950,7 @@ Datos (JSON):
     upTitle(el) { UI.up.title = el.value; const ch = S.channels[UI.up.slot]; const ts = AGENT.scoreTitle(el.value, { keywords: kws(ch) }); const sc = $('#tScore'); if (sc) { sc.textContent = ts.score; sc.className = 'score ' + scoreCls(ts.score); $('#tTips').textContent = ts.tips[0] || '¡Buen título!'; } const lbl = el.closest('label').querySelector('span span'); if (lbl) lbl.textContent = el.value.length + '/100'; },
     upDesc(el) { UI.up.desc = el.value; },
     upTags(el) { UI.up.tags = el.value; },
-    upPrivacy(el) { UI.up.privacy = el.value; if (el.value === 'schedule' && !UI.up.when) { const a = AGENT.analyze(S.channels[UI.up.slot]); const d = new Date(Date.now() + 86400000); if (a && a.bestDayN != null) { while (d.getDay() !== a.bestDayN) d.setDate(d.getDate() + 1); d.setHours(a.bestHour, 0, 0, 0); } else d.setHours(18, 0, 0, 0); UI.up.when = `${dkey(d)}T${pad(d.getHours())}:00`; } render(); },
+    upPrivacy(el) { UI.up.privacy = el.value; if (el.value === 'schedule' && !UI.up.when) { const a = AGENT.analyze(S.channels[UI.up.slot]); const d = new Date(Date.now() + 86400000); if (a && a.bestDayN != null) { while (d.getDay() !== a.bestDayN) d.setDate(d.getDate() + 1); d.setHours(a.bestHour ?? 18, 0, 0, 0); } else d.setHours(18, 0, 0, 0); UI.up.when = `${dkey(d)}T${pad(d.getHours())}:00`; } render(); },
     upCat(el) { UI.up.cat = el.value; },
     upWhen(el) { UI.up.when = el.value; },
     upPlaylist(el) { UI.up.playlist = el.value; },
@@ -1003,13 +1004,33 @@ Datos (JSON):
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
   window.addEventListener('beforeunload', e => { if (UI.uploading) { e.preventDefault(); e.returnValue = ''; } });
 
+  // ---------- datos públicos de tus canales (sin iniciar sesión) ----------
+  let PUB_AT = '';
+  function loadPublic() {
+    return fetch('data/canales.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
+      if (!d || !Array.isArray(d.channels)) return;
+      PUB_AT = new Date(d.updated + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      let changed = false;
+      d.channels.forEach((p, i) => {
+        const ch = S.channels[i];
+        if (!ch || (ch.title && !ch.pub && !ch.demo)) return; // ya hay sesión real: manda la sesión
+        if (ch.pub && ch.pubAt === d.updated) return;
+        Object.assign(ch, p, { pub: true, demo: false, pubAt: d.updated, uploads: '' });
+        delete S.viral[i];
+        changed = true;
+      });
+      if (changed) { save(); render(); }
+    }).catch(() => {});
+  }
+
   // ---------- arranque ----------
   const h = (location.hash || '').slice(1).split('/');
   if (NAV.some(n => n[0] === h[0])) { UI.view = h[0]; if (h[1] && AGENT_TABS.some(t => t[0] === h[1])) UI.agentTab = h[1]; }
   rollMissions();
   render();
+  loadPublic();
   initAI();
   // Refresca en segundo plano los canales con sesión activa si los datos tienen más de 2 h
-  setTimeout(() => S.channels.forEach((c, i) => { if (c.title && !c.demo && connected(i) && (!c.fetchedAt || Date.now() - c.fetchedAt > 7200000)) refresh(i, true); }), 1200);
+  setTimeout(() => S.channels.forEach((c, i) => { if (c.title && !ro(c) && connected(i) && (!c.fetchedAt || Date.now() - c.fetchedAt > 7200000)) refresh(i, true); }), 1200);
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
