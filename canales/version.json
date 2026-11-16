@@ -1,10 +1,17 @@
 {
-  "version": "1.0.3",
+  "version": "1.0.4",
   "date": "2026-11-16",
   "notes": [
-    "Corregido el tamaño de las fotos de los canales en Ajustes"
+    "Las fotos de los canales se ven pequeñas y el diseño se actualiza siempre"
   ],
   "history": [
+    {
+      "version": "1.0.4",
+      "date": "2026-11-16",
+      "notes": [
+        "Las fotos de los canales se ven pequeñas y el diseño se actualiza siempre"
+      ]
+    },
     {
       "version": "1.0.3",
       "date": "2026-11-16",

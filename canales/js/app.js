@@ -75,7 +75,7 @@
   function closeSheet() { const s = $('#sheet'); s.hidden = true; s.innerHTML = ''; document.body.style.overflow = ''; }
   const sheetHead = t => `<div class="head"><h3>${t}</h3><button class="icon-btn" data-act="closeSheet" aria-label="Cerrar">✕</button></div>`;
   function avatar(ch, size = '') {
-    if (ch && ch.thumb) return `<img class="av" src="${esc(ch.thumb)}" alt="" referrerpolicy="no-referrer" ${size}>`;
+    if (ch && ch.thumb) return `<img class="av" src="${esc(ch.thumb)}" alt="" width="48" height="48" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex:none" referrerpolicy="no-referrer" ${size}>`;
     const l = ch && ch.title ? ch.title.trim()[0].toUpperCase() : (ch ? String(ch.slot + 1) : '?');
     return `<div class="av">${esc(l)}</div>`;
   }

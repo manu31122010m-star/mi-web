@@ -1,5 +1,5 @@
 /* Service worker: funciona sin conexión y abre la app al tocar un aviso */
-const CACHE = 'canales-v1.0.3';
+const CACHE = 'canales-v1.0.4';
 const ASSETS = ['./', './index.html', './css/styles.css', './js/yt.js', './js/agent.js', './js/app.js', './manifest.webmanifest', './data/canales.json', '../shared/update.js', './icons/favicon-32.png', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/maskable-512.png'];
 
 self.addEventListener('install', e => {
@@ -15,7 +15,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(req, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))

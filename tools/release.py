@@ -29,6 +29,11 @@ def release(app, notes, part):
     s = sw.read_text()
     s = re.sub(r"const CACHE = '[^']*';", f"const CACHE = '{app}-v{new}';", s, count=1)
     sw.write_text(s)
+    idx = ROOT / app / 'index.html'
+    h = idx.read_text()
+    h2 = re.sub(r'\?v=[0-9.]+"', f'?v={new}"', h)
+    if h2 != h:
+        idx.write_text(h2)
     print(f'{app}: {old} → {new}')
 
 if __name__ == '__main__':
