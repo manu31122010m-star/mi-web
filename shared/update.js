@@ -12,6 +12,9 @@
   let first = navigator.onLine !== false;
 
   try { running = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { running = null; }
+  // Si la página dice qué versión es (data-version), esa es la que se está usando de verdad
+  const PAGE_V = me && me.dataset.version;
+  if (PAGE_V && (!running || running.version !== PAGE_V)) running = { version: PAGE_V, notes: (running && running.version === PAGE_V && running.notes) || [] };
 
   const css = document.createElement('style');
   css.textContent = `
@@ -55,7 +58,7 @@
     try {
       latest = await fetchLatest();
       // La primera comprobación con conexión corresponde a lo que se acaba de cargar (la red tiene prioridad)
-      if (!running || first) { running = latest; localStorage.setItem(KEY, JSON.stringify(running)); }
+      if (!running || (first && !PAGE_V) || (PAGE_V && latest.version === PAGE_V)) { running = PAGE_V && latest.version !== PAGE_V ? running : latest; localStorage.setItem(KEY, JSON.stringify(running)); }
       first = false;
       if (newer()) { showBanner(); if (!manual) msg = ''; }
       if (manual) setMsg(newer() ? `Hay una versión nueva: ${latest.version}` : `✓ Ya tienes la última versión (${running.version})`);

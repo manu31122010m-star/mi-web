@@ -1,10 +1,19 @@
 {
-  "version": "1.0.6",
+  "version": "1.0.7",
   "date": "2026-11-16",
   "notes": [
-    "Nuevo: pega tus cuentas de Google en Ajustes"
+    "Actualizaciones más fiables: la app sabe siempre qué versión tienes",
+    "Pega tus cuentas de Google en Ajustes"
   ],
   "history": [
+    {
+      "version": "1.0.7",
+      "date": "2026-11-16",
+      "notes": [
+        "Actualizaciones más fiables: la app sabe siempre qué versión tienes",
+        "Pega tus cuentas de Google en Ajustes"
+      ]
+    },
     {
       "version": "1.0.6",
       "date": "2026-11-16",

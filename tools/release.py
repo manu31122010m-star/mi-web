@@ -32,6 +32,7 @@ def release(app, notes, part):
     idx = ROOT / app / 'index.html'
     h = idx.read_text()
     h2 = re.sub(r'\?v=[0-9.]+"', f'?v={new}"', h)
+    h2 = re.sub(r'data-version="[0-9.]+"', f'data-version="{new}"', h2)
     if h2 != h:
         idx.write_text(h2)
     print(f'{app}: {old} → {new}')
