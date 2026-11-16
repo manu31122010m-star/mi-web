@@ -825,7 +825,9 @@ Datos (JSON):
       <div class="sec"><h2>Conexión con YouTube</h2></div>
       <div class="card">
         ${clients().length ? `<div class="small" style="font-weight:700;color:var(--muted);margin-bottom:6px">Cuentas de Google configuradas</div>${clients().map((c, i) => `<div class="li"><span>📧</span><div class="grow" style="min-width:0"><div class="t small ell">${esc(c.label || 'Cuenta ' + (i + 1))}</div><div class="s ell">${esc(c.id.slice(0, 22))}…${S.channels.filter(ch => ch.clientId === c.id).map(ch => ' · ' + esc(ch.title)).join('')}</div></div><button class="icon-btn" data-act="delClient" data-i="${i}" aria-label="Quitar">✕</button></div>`).join('')}<p class="tiny dim">Al tocar «Conectar» eliges con cuál de estas cuentas entras.</p>` : ''}
-        <label class="f" style="margin-top:${clients().length ? '14px' : '0'}"><span>${clients().length ? 'Otro ID de cliente (opcional)' : 'ID de cliente OAuth de Google'}</span><input type="text" data-in="sClient" value="${esc(st.clientId)}" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
+        <label class="f" style="margin-top:${clients().length ? '14px' : '0'}"><span>Pega tus cuentas (correo e ID, uno debajo del otro)</span><textarea id="pasteClients" rows="4" placeholder="correo@gmail.com&#10;12345-abc.apps.googleusercontent.com&#10;otro@gmail.com&#10;67890-def.apps.googleusercontent.com"></textarea></label>
+        <button class="btn primary block" style="margin-top:8px" data-act="saveClients">💾 Guardar cuentas</button>
+        <label class="f"><span>${clients().length ? 'Otro ID de cliente (opcional)' : 'ID de cliente OAuth de Google'}</span><input type="text" data-in="sClient" value="${esc(st.clientId)}" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
         <label class="f"><span>Clave de API (opcional, para buscar virales sin sesión)</span><input type="text" data-in="sKey" value="${esc(st.apiKey)}" placeholder="AIza…" autocomplete="off" spellcheck="false"></label>
         <p class="tiny dim">Se guardan solo en este dispositivo. Nadie más los ve.</p>
       </div>
@@ -892,6 +894,18 @@ Datos (JSON):
     refresh(el) { closeSheet(); refresh(Number(el.dataset.slot)); },
     refreshAll() { let n = 0; S.channels.forEach((c, i) => { if (c.title && !ro(c) && connected(i)) { n++; refresh(i, true); } }); toast(n ? '🔄 Actualizando…' : 'Vuelve a entrar en tus canales', n ? '' : 'Las sesiones de Google caducan cada hora.'); },
     disconnect(el) { disconnect(Number(el.dataset.slot)); },
+    saveClients() {
+      const txt = ($('#pasteClients') || {}).value || '';
+      const tokens = txt.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+|[\w-]+\.apps\.googleusercontent\.com/g) || [];
+      const cur = clients(); let label = ''; let n = 0;
+      tokens.forEach(t => {
+        if (/\.apps\.googleusercontent\.com$/.test(t)) { if (!cur.some(c => c.id === t)) { cur.push({ id: t, label }); n++; } else if (label) cur.find(c => c.id === t).label = label; label = ''; }
+        else label = t;
+      });
+      if (!tokens.some(t => /googleusercontent/.test(t))) { toast('No encuentro ningún ID', 'Tiene que acabar en .apps.googleusercontent.com'); return; }
+      S.settings.clients = cur; save(); render();
+      toast(`✅ ${cur.length} cuenta${cur.length === 1 ? '' : 's'} de Google guardada${cur.length === 1 ? '' : 's'}`, 'Ve a Inicio y toca «Conectar» en cada canal.');
+    },
     connectWith(el) { closeSheet(); connect(Number(el.dataset.slot), clients()[Number(el.dataset.i)]); },
     otherAccount(el) { const ch = S.channels[Number(el.dataset.slot)]; delete ch.clientId; save(); if (clients().length > 1) pickAccount(Number(el.dataset.slot)); else connect(Number(el.dataset.slot)); },
     delClient(el) { const i = Number(el.dataset.i); const c = clients()[i]; if (!c || !confirm(`¿Quitar ${c.label || 'esta cuenta'}?`)) return; S.settings.clients = clients().filter((x, j) => j !== i); S.channels.forEach(ch => { if (ch.clientId === c.id) delete ch.clientId; }); save(); render(); },
@@ -1050,7 +1064,7 @@ Datos (JSON):
   // ---------- arranque ----------
   // Enlace de configuración: #setup=<base64 de [{label,id}]> → guarda las cuentas en este dispositivo
   (function readSetup() {
-    const m = /#setup=([A-Za-z0-9_\-=]+)/.exec(location.hash || '');
+    const m = /[#?&]setup=([A-Za-z0-9_\-=]+)/.exec((location.hash || '') + (location.search || ''));
     if (!m) return;
     try {
       const raw = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
@@ -1060,7 +1074,7 @@ Datos (JSON):
       S.settings.clients = cur; save();
       setTimeout(() => toast(`✅ ${list.length} cuentas de Google configuradas`, 'Toca «Conectar» en cada canal y elige su correo.'), 600);
     } catch (e) { setTimeout(() => toast('El enlace de configuración no es válido'), 600); }
-    history.replaceState(null, '', '#inicio');
+    history.replaceState(null, '', location.pathname + '#inicio');
   })();
   const h = (location.hash || '').slice(1).split('/');
   if (NAV.some(n => n[0] === h[0])) { UI.view = h[0]; if (h[1] && AGENT_TABS.some(t => t[0] === h[1])) UI.agentTab = h[1]; }

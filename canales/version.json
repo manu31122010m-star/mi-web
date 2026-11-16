@@ -1,10 +1,17 @@
 {
-  "version": "1.0.5",
+  "version": "1.0.6",
   "date": "2026-11-16",
   "notes": [
-    "Cada canal puede entrar con su propia cuenta de Google"
+    "Nuevo: pega tus cuentas de Google en Ajustes"
   ],
   "history": [
+    {
+      "version": "1.0.6",
+      "date": "2026-11-16",
+      "notes": [
+        "Nuevo: pega tus cuentas de Google en Ajustes"
+      ]
+    },
     {
       "version": "1.0.5",
       "date": "2026-11-16",
