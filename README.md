@@ -1,4 +1,4 @@
-# Mis apps: Estudio, FOCUS, Mi Gym y Foco
+# Mis apps: Estudio, FOCUS, Mi Gym, Foco y Canales
 
 Dos apps web instalables (PWA), sin dependencias ni compilación. Funcionan sin conexión y guardan los datos solo en el dispositivo.
 
@@ -40,6 +40,18 @@ Bloqueador de distracciones con el diseño de la app Focus: tres pestañas (Foco
 - **Ajustes**: tu motivo (sale en la pantalla de bloqueo), avisos, webs bloqueadas en Chrome (las de tus apps y las que añadas), permisos, modo estricto, copia de seguridad y actualizaciones.
 
 > Una web no puede cerrar otras apps ni leer su tiempo de uso real: dentro de la app hay una guía para activar el bloqueo del sistema (Bienestar digital / Tiempo de uso) con las mismas apps y límites.
+
+## 📺 Canales (`canales/`)
+
+Panel para controlar **3 canales de YouTube** con inicio de sesión de Google (un canal por hueco, también canales de marca).
+
+- **Inicio**: suscriptores, visitas y vídeos de los 3 canales, gráfica de los últimos vídeos, objetivos, próximos vídeos y misiones del día.
+- **Organizar**: tablero Idea → Guion → Grabar → Editar → Listo → Publicado por canal, calendario mensual y ritmo semanal.
+- **Subir**: sube el vídeo directo al canal elegido con progreso, título puntuado, descripción y etiquetas generadas, visibilidad o publicación programada (sugiere tu mejor día y hora), lista de reproducción y miniatura.
+- **Agente de crecimiento**: misiones diarias con XP y racha; **virales del nicho** ordenados por visitas/día y visitas frente al tamaño del canal, con patrones de títulos, etiquetas y canales para colaborar; generador y puntuador de títulos, ganchos e ideas de Shorts; **kit de promoción** (X, Instagram/TikTok, WhatsApp, Comunidad, comentario fijado, Reddit) y promoción cruzada; responder comentarios con respuestas sugeridas; chat (sin conexión, o con Claude si se abre desde claude.ai).
+- Solo técnicas permitidas por YouTube: nada de bots, compra de suscriptores ni spam.
+
+Para conectar los canales hace falta un **ID de cliente OAuth de Google** (gratis; la guía paso a paso está en Ajustes). Sin él se puede probar con datos de ejemplo.
 
 ## 🔄 Actualizaciones y mantenimiento
 
