@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "date": "2026-11-16",
+  "notes": [
+    "Primera versión: 3 canales, tablero, subidas y agente de crecimiento"
+  ],
+  "history": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-16",
+      "notes": [
+        "Primera versión: 3 canales, tablero, subidas y agente de crecimiento"
+      ]
+    }
+  ]
+}

@@ -24,7 +24,8 @@ const APPS = {
   estudio: { tabs: '.tabbar [data-act="go"]' },
   focus: { tabs: '.tabbar [data-act="go"]' },
   gym: { tabs: '.nav [data-act="tab"]' },
-  foco: { tabs: '.nav [data-act="tab"]' }
+  foco: { tabs: '.nav [data-act="tab"]' },
+  canales: { tabs: '.nav [data-act="go"]' }
 };
 
 (async () => {

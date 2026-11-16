@@ -10,7 +10,7 @@ import json, re, sys, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-APPS = ['estudio', 'focus', 'gym', 'foco']
+APPS = ['estudio', 'focus', 'gym', 'foco', 'canales']
 
 def bump(v, part):
     a, b, c = (int(x) for x in v.split('.'))
