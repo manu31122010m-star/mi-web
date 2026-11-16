@@ -1,5 +1,5 @@
 /* Service worker: funciona sin conexión y abre la app al tocar un aviso */
-const CACHE = 'canales-v1.0.0';
+const CACHE = 'canales-v1.0.1';
 const ASSETS = ['./', './index.html', './css/styles.css', './js/yt.js', './js/agent.js', './js/app.js', './manifest.webmanifest', '../shared/update.js', './icons/favicon-32.png', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/maskable-512.png'];
 
 self.addEventListener('install', e => {

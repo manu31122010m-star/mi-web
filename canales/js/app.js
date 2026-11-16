@@ -17,7 +17,13 @@
   const REGIONS = { ES: 'España', MX: 'México', AR: 'Argentina', CO: 'Colombia', CL: 'Chile', PE: 'Perú', US: 'Estados Unidos', GB: 'Reino Unido' };
 
   // ---------- estado ----------
-  const blankCh = i => ({ slot: i, color: COLORS[i], niche: '', keywords: '', goal: 0, perWeek: 1, links: '' });
+  // Tus 3 canales (se rellenan solos: al iniciar sesión se comprueba que entras en el canal correcto)
+  const MINE = [
+    { name: 'Mundo Rarezas', handle: '@MundoRarezas', niche: 'curiosidades y datos curiosos', keywords: 'datos curiosos, curiosidades, sabías que, historia curiosa, inventos' },
+    { name: 'IA de Novato a Pro', handle: '@IANovatoAPro', niche: 'Claude IA en español', keywords: 'Claude, inteligencia artificial, IA, trucos IA, ChatGPT' },
+    { name: 'Luis: De Cero a Millonario', handle: '@LuisDeCeroAMillonario', niche: 'finanzas personales en historias', keywords: 'finanzas personales, ahorrar dinero, salir de deudas, fondo de emergencia, invertir' }
+  ];
+  const blankCh = i => ({ slot: i, color: COLORS[i], niche: MINE[i].niche, keywords: MINE[i].keywords, goal: 0, perWeek: 3, links: '', expect: MINE[i] });
   const DEF = () => ({
     settings: { clientId: '', apiKey: '', region: 'ES', lang: 'es', aiEngine: 'local', name: '' },
     channels: [0, 1, 2].map(blankCh), plan: [], viral: {}, missions: { day: '', done: {}, replies: {} },
@@ -26,7 +32,7 @@
   let S;
   try { S = Object.assign(DEF(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = DEF(); }
   S.settings = Object.assign(DEF().settings, S.settings);
-  S.channels = [0, 1, 2].map(i => Object.assign(blankCh(i), (S.channels || [])[i] || {}));
+  S.channels = [0, 1, 2].map(i => { const c = Object.assign(blankCh(i), (S.channels || [])[i] || {}); c.expect = MINE[i]; if (!c.niche) c.niche = MINE[i].niche; if (!c.keywords) c.keywords = MINE[i].keywords; return c; });
   S.missions = Object.assign({ day: '', done: {}, replies: {} }, S.missions);
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
@@ -44,7 +50,8 @@
   };
   function firstLive() { const i = S.channels.findIndex(c => c.title); return i < 0 ? 0 : i; }
   const live = () => S.channels.filter(c => c.title);
-  const chName = i => (S.channels[i] && S.channels[i].title) || `Canal ${i + 1}`;
+  const chName = i => (S.channels[i] && S.channels[i].title) || (MINE[i] && MINE[i].name) || `Canal ${i + 1}`;
+  const othersOf = slot => S.channels.filter((c, i) => i !== slot).map(c => c.title ? c : { title: c.expect.name, handle: c.expect.handle });
   const cc = i => `--cc:${(S.channels[i] && S.channels[i].color) || COLORS[i]}`;
   const connected = i => !!YT.tokenFor(i);
   const kws = ch => String(ch.keywords || ch.niche || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -133,6 +140,8 @@
       const dup = S.channels.findIndex((c, i) => i !== slot && c.id === info.id);
       if (dup >= 0) { YT.signOut(slot); throw new Error(`Ese canal ya está en el hueco ${dup + 1}. Al iniciar sesión elige otro canal (o el canal de marca).`); }
       const ch = S.channels[slot];
+      const exp = MINE[slot];
+      if (!ch.id && exp && info.handle && info.handle.toLowerCase() !== exp.handle.toLowerCase() && !confirm(`Has entrado con «${info.title}» (${info.handle}), pero este hueco es para ${exp.name} (${exp.handle}). ¿Usarlo igualmente?`)) { YT.signOut(slot); throw new Error(`Vuelve a intentarlo y elige ${exp.name} en la ventana de Google.`); }
       if (ch.id && ch.id !== info.id && !confirm(`Has entrado con «${info.title}», no con «${ch.title}». ¿Sustituir el canal ${slot + 1}?`)) { YT.signOut(slot); throw new Error('Conexión cancelada.'); }
       if (ch.id !== info.id) { ch.recent = []; delete S.viral[slot]; }
       Object.assign(ch, info, { demo: false });
@@ -181,7 +190,7 @@
       { title: 'Ejemplo · Cocina', handle: '@ejemplo-cocina', subs: 3200, views: 410000, videos: 96, niche: 'recetas fáciles', keywords: 'recetas, cocina fácil, airfryer', recent: mk(['Cena en 10 minutos con 3 ingredientes', 'Short: el huevo perfecto', 'Probé recetas virales de TikTok', 'Meal prep para toda la semana', 'Airfryer: 5 recetas que no conocías', 'Short: tortilla en 30 s', 'Postre sin horno', 'Pan casero sin amasar', 'Comida de 1 € al día durante una semana', 'Short: truco de cebolla'], 2600) },
       { title: 'Ejemplo · Vlogs', handle: '@ejemplo-vlogs', subs: 640, views: 52000, videos: 41, niche: 'vlogs de viajes', keywords: 'viajes, vlog, escapadas', recent: mk(['48 h en Lisboa con 100 €', 'Short: mirador secreto', 'Mi rutina de viaje', 'Lo que nadie te cuenta de viajar sola', 'Short: maleta en 1 minuto', 'Escapada rural de fin de semana', 'Vlog: primer día en Roma', 'Cómo encuentro vuelos baratos'], 900) }
     ];
-    demo.forEach((d, i) => { if (!S.channels[i].title) S.channels[i] = Object.assign(S.channels[i], d, { demo: true, id: 'demo' + i }); });
+    demo.forEach((d, i) => { if (!S.channels[i].title) { const { niche, keywords, ...rest } = d; S.channels[i] = Object.assign(S.channels[i], rest, { demo: true, id: 'demo' + i }); } });
     save(); toast('👀 Modo ejemplo', 'Son datos inventados para probar la app. Conecta tus canales cuando quieras.');
     render();
   }
@@ -192,7 +201,7 @@
   function chCard(ch, i) {
     if (!ch.title) {
       return `<div class="ch" style="${cc(i)}" data-act="connect" data-slot="${i}">
-        <div class="av">＋</div><div class="info"><div class="name">Canal ${i + 1}</div><div class="meta">Toca para iniciar sesión con Google</div></div>
+        <div class="av">＋</div><div class="info"><div class="name">${esc(chName(i))}</div><div class="meta">${esc(MINE[i].handle)} · toca para iniciar sesión</div></div>
         <span class="btn sm primary">${UI.busy['c' + i] ? 'Conectando…' : 'Conectar'}</span></div>`;
     }
     const vals = (ch.recent || []).slice(0, 12).reverse().map(v => v.views);
@@ -543,7 +552,7 @@
         <label class="f" style="margin-top:0"><span>Nicho / palabras de búsqueda</span><input type="search" id="vq" value="${esc(q)}" placeholder="p. ej. recetas fáciles, minecraft, viajes baratos"></label>
         <div class="grid2">
           <label class="f"><span>Periodo</span><select id="vdays">${[[2, '48 horas'], [7, '7 días'], [30, '30 días'], [90, '3 meses'], [365, '1 año']].map(([d, l]) => `<option value="${d}" ${(v ? v.days : 30) === d ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-          <label class="f"><span>Formato</span><select id="vkind">${[['all', 'Todo'], ['long', 'Vídeos largos'], ['short', 'Shorts']].map(([k, l]) => `<option value="${k}" ${(v ? v.kind : 'all') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <label class="f"><span>Formato</span><select id="vkind">${[['all', 'Todo'], ['long', 'Vídeos largos'], ['short', 'Shorts']].map(([k, l]) => `<option value="${k}" ${(v ? v.kind : 'short') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         </div>
         <button class="btn primary block" style="margin-top:14px" data-act="viralSearch" ${busy ? 'disabled' : ''}>${busy ? 'Buscando…' : '🔥 Buscar los más virales'}</button>
         <p class="tiny dim" style="margin:8px 0 0">Ordena por velocidad (visitas/día), visitas frente al tamaño del canal y participación. Cada búsqueda gasta ~102 de las 10.000 unidades diarias de la API.</p>
@@ -606,7 +615,7 @@
     const vids = (ch.recent || []).slice(0, 15);
     if (!UI.promoVid && vids[0]) UI.promoVid = vids[0].id;
     const v = vids.find(x => x.id === UI.promoVid) || vids[0];
-    const others = S.channels.filter((c, i) => i !== slot && c.title);
+    const others = othersOf(slot);
     const kit = v ? AGENT.promoKit(v, ch, others) : [];
     const url = v && !v.id.startsWith('demo') ? 'https://youtu.be/' + v.id : '';
     const share = (k, text) => {
@@ -888,7 +897,7 @@ Datos (JSON):
       const vt = ((S.viral[u.slot] || {}).items || []);
       const vtags = vt.length ? AGENT.patterns(vt).tags : [];
       const tags = AGENT.suggestTags(u.title, ch.niche || kws(ch).join(' '), vtags);
-      const others = S.channels.filter((c, i) => i !== u.slot && c.title);
+      const others = othersOf(u.slot);
       u.desc = AGENT.description({ title: u.title, topic: u.title, channel: ch, others, tags, links: ch.links });
       u.tags = tags.join(', ');
       render(); toast('✨ Descripción y etiquetas listas', 'Revisa los capítulos y los «…».');

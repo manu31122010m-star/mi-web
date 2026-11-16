@@ -1,10 +1,17 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "date": "2026-11-16",
   "notes": [
-    "Primera versión: 3 canales, tablero, subidas y agente de crecimiento"
+    "Tus 3 canales ya configurados: Mundo Rarezas, IA de Novato a Pro y Luis: De Cero a Millonario"
   ],
   "history": [
+    {
+      "version": "1.0.1",
+      "date": "2026-11-16",
+      "notes": [
+        "Tus 3 canales ya configurados: Mundo Rarezas, IA de Novato a Pro y Luis: De Cero a Millonario"
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "2026-11-16",
