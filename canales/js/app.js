@@ -132,11 +132,31 @@
   }
 
   // ---------- conexión con canales ----------
-  async function connect(slot) {
-    if (!S.settings.clientId) { toast('Falta configurar la conexión', 'Sigue la guía de Ajustes → Conexión con YouTube.'); go('ajustes'); return; }
+  // Cuentas de Google (una por ID de cliente). Se guardan solo en este dispositivo.
+  const clients = () => (S.settings.clients || []).filter(c => c && c.id);
+  function clientFor(slot) {
+    const ch = S.channels[slot];
+    const cl = clients();
+    if (ch.clientId && cl.some(c => c.id === ch.clientId)) return cl.find(c => c.id === ch.clientId);
+    if (ch.clientId) return { id: ch.clientId, label: '' };
+    if (cl.length === 1) return cl[0];
+    if (!cl.length && S.settings.clientId) return { id: S.settings.clientId, label: '' };
+    return null;
+  }
+  function pickAccount(slot) {
+    openSheet(`${sheetHead('¿Con qué cuenta entras?')}
+      <p class="small muted" style="margin-top:0">Elige el correo de <b>${esc(chName(slot))}</b>. La app lo recordará para este canal.</p>
+      ${clients().map((c, i) => `<button class="btn block" style="margin-top:8px;justify-content:flex-start" data-act="connectWith" data-slot="${slot}" data-i="${i}">📧 ${esc(c.label || 'Cuenta ' + (i + 1))}</button>`).join('')}`);
+  }
+  async function connect(slot, chosen) {
+    const cli = chosen || clientFor(slot);
+    if (!cli) {
+      if (clients().length > 1) { pickAccount(slot); return; }
+      toast('Falta configurar la conexión', 'Sigue la guía de Ajustes → Conexión con YouTube.'); go('ajustes'); return;
+    }
     UI.busy['c' + slot] = true; render();
     try {
-      const r = await YT.signIn(S.settings.clientId, slot);
+      const r = await YT.signIn(cli.id, slot, /@/.test(cli.label || '') ? cli.label : '');
       const info = await YT.myChannel(slot);
       const dup = S.channels.findIndex((c, i) => i !== slot && c.id === info.id);
       if (dup >= 0) { YT.signOut(slot); throw new Error(`Ese canal ya está en el hueco ${dup + 1}. Al iniciar sesión elige otro canal (o el canal de marca).`); }
@@ -145,7 +165,7 @@
       if (!ch.id && exp && info.handle && info.handle.toLowerCase() !== exp.handle.toLowerCase() && !confirm(`Has entrado con «${info.title}» (${info.handle}), pero este hueco es para ${exp.name} (${exp.handle}). ¿Usarlo igualmente?`)) { YT.signOut(slot); throw new Error(`Vuelve a intentarlo y elige ${exp.name} en la ventana de Google.`); }
       if (ch.id && ch.id !== info.id && !confirm(`Has entrado con «${info.title}», no con «${ch.title}». ¿Sustituir el canal ${slot + 1}?`)) { YT.signOut(slot); throw new Error('Conexión cancelada.'); }
       if (ch.id !== info.id) { ch.recent = []; delete S.viral[slot]; }
-      Object.assign(ch, info, { demo: false, pub: false });
+      Object.assign(ch, info, { demo: false, pub: false, clientId: cli.id });
       if (!ch.niche && info.keywords) ch.keywords = info.keywords.replace(/"/g, '').split(/\s+/).slice(0, 6).join(', ');
       save();
       toast(`✅ ${info.title} conectado`, r.partial ? 'Faltan permisos: algunas funciones no irán.' : 'Ya puedes subir vídeos y responder comentarios.');
@@ -795,7 +815,7 @@ Datos (JSON):
       <div class="sec"><h2>Mis 3 canales</h2></div>
       ${S.channels.map((c, i) => `<div class="card" style="${cc(i)}">
         <div class="row" style="flex-wrap:nowrap;gap:12px">${avatar(c)}<div class="grow" style="min-width:0"><b class="ell" style="display:block">${esc(chName(i))}</b><span class="small muted">${c.demo ? 'Datos de ejemplo' : c.pub ? 'Datos públicos (inicia sesión para subir)' : c.title ? (connected(i) ? '🟢 Sesión activa' : '⚪ Sesión caducada') : 'Sin conectar'}</span></div>
-          ${c.title && !ro(c) ? `<button class="btn sm" data-act="connect" data-slot="${i}">${connected(i) ? 'Cambiar' : 'Entrar'}</button><button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Desconectar">⏏</button>` : `<button class="btn sm primary" data-act="connect" data-slot="${i}">${UI.busy['c' + i] ? '…' : 'Conectar'}</button>${c.demo && !c.pub ? `<button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Quitar ejemplo">✕</button>` : ''}`}</div>
+          ${c.title && !ro(c) ? `<button class="btn sm" data-act="${clients().length > 1 ? 'otherAccount' : 'connect'}" data-slot="${i}">${connected(i) ? 'Cambiar' : 'Entrar'}</button><button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Desconectar">⏏</button>` : `<button class="btn sm primary" data-act="connect" data-slot="${i}">${UI.busy['c' + i] ? '…' : 'Conectar'}</button>${c.demo && !c.pub ? `<button class="icon-btn" data-act="disconnect" data-slot="${i}" aria-label="Quitar ejemplo">✕</button>` : ''}`}</div>
         <label class="f"><span>Nicho</span><input type="text" data-in="chNiche" data-slot="${i}" value="${esc(c.niche)}" placeholder="p. ej. recetas fáciles"></label>
         <label class="f"><span>Palabras clave (comas)</span><input type="text" data-in="chKw" data-slot="${i}" value="${esc(c.keywords)}" placeholder="airfryer, cenas rápidas, meal prep"></label>
         <div class="grid2"><label class="f"><span>Objetivo de subs</span><input type="number" min="0" data-in="chGoal" data-slot="${i}" value="${c.goal || ''}" placeholder="auto"></label><label class="f"><span>Vídeos/semana</span><input type="number" min="1" max="21" data-in="chWeek" data-slot="${i}" value="${c.perWeek || 1}"></label></div>
@@ -804,7 +824,8 @@ Datos (JSON):
 
       <div class="sec"><h2>Conexión con YouTube</h2></div>
       <div class="card">
-        <label class="f" style="margin-top:0"><span>ID de cliente OAuth de Google</span><input type="text" data-in="sClient" value="${esc(st.clientId)}" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
+        ${clients().length ? `<div class="small" style="font-weight:700;color:var(--muted);margin-bottom:6px">Cuentas de Google configuradas</div>${clients().map((c, i) => `<div class="li"><span>📧</span><div class="grow" style="min-width:0"><div class="t small ell">${esc(c.label || 'Cuenta ' + (i + 1))}</div><div class="s ell">${esc(c.id.slice(0, 22))}…${S.channels.filter(ch => ch.clientId === c.id).map(ch => ' · ' + esc(ch.title)).join('')}</div></div><button class="icon-btn" data-act="delClient" data-i="${i}" aria-label="Quitar">✕</button></div>`).join('')}<p class="tiny dim">Al tocar «Conectar» eliges con cuál de estas cuentas entras.</p>` : ''}
+        <label class="f" style="margin-top:${clients().length ? '14px' : '0'}"><span>${clients().length ? 'Otro ID de cliente (opcional)' : 'ID de cliente OAuth de Google'}</span><input type="text" data-in="sClient" value="${esc(st.clientId)}" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></label>
         <label class="f"><span>Clave de API (opcional, para buscar virales sin sesión)</span><input type="text" data-in="sKey" value="${esc(st.apiKey)}" placeholder="AIza…" autocomplete="off" spellcheck="false"></label>
         <p class="tiny dim">Se guardan solo en este dispositivo. Nadie más los ve.</p>
       </div>
@@ -871,6 +892,9 @@ Datos (JSON):
     refresh(el) { closeSheet(); refresh(Number(el.dataset.slot)); },
     refreshAll() { let n = 0; S.channels.forEach((c, i) => { if (c.title && !ro(c) && connected(i)) { n++; refresh(i, true); } }); toast(n ? '🔄 Actualizando…' : 'Vuelve a entrar en tus canales', n ? '' : 'Las sesiones de Google caducan cada hora.'); },
     disconnect(el) { disconnect(Number(el.dataset.slot)); },
+    connectWith(el) { closeSheet(); connect(Number(el.dataset.slot), clients()[Number(el.dataset.i)]); },
+    otherAccount(el) { const ch = S.channels[Number(el.dataset.slot)]; delete ch.clientId; save(); if (clients().length > 1) pickAccount(Number(el.dataset.slot)); else connect(Number(el.dataset.slot)); },
+    delClient(el) { const i = Number(el.dataset.i); const c = clients()[i]; if (!c || !confirm(`¿Quitar ${c.label || 'esta cuenta'}?`)) return; S.settings.clients = clients().filter((x, j) => j !== i); S.channels.forEach(ch => { if (ch.clientId === c.id) delete ch.clientId; }); save(); render(); },
     demo() { loadDemo(); closeSheet(); },
     chSheet(el) { chSheet(Number(el.dataset.slot)); },
     mission(el) { const id = el.dataset.id; if (S.missions.done[id]) { delete S.missions.done[id]; save(); } else completeMission(id); render(); },
@@ -1024,6 +1048,20 @@ Datos (JSON):
   }
 
   // ---------- arranque ----------
+  // Enlace de configuración: #setup=<base64 de [{label,id}]> → guarda las cuentas en este dispositivo
+  (function readSetup() {
+    const m = /#setup=([A-Za-z0-9_\-=]+)/.exec(location.hash || '');
+    if (!m) return;
+    try {
+      const raw = decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))));
+      const list = JSON.parse(raw).filter(c => c && /\.apps\.googleusercontent\.com$/.test(String(c.id || '')));
+      const cur = clients();
+      list.forEach(c => { if (!cur.some(x => x.id === c.id)) cur.push({ id: String(c.id).trim(), label: String(c.label || '').slice(0, 80) }); });
+      S.settings.clients = cur; save();
+      setTimeout(() => toast(`✅ ${list.length} cuentas de Google configuradas`, 'Toca «Conectar» en cada canal y elige su correo.'), 600);
+    } catch (e) { setTimeout(() => toast('El enlace de configuración no es válido'), 600); }
+    history.replaceState(null, '', '#inicio');
+  })();
   const h = (location.hash || '').slice(1).split('/');
   if (NAV.some(n => n[0] === h[0])) { UI.view = h[0]; if (h[1] && AGENT_TABS.some(t => t[0] === h[1])) UI.agentTab = h[1]; }
   rollMissions();

@@ -39,7 +39,7 @@
   function tokenFor(slot) { const t = tokens()[slot]; return t && t.exp > Date.now() + 30000 ? t.token : null; }
   function anyToken() { for (const s of [0, 1, 2]) { const t = tokenFor(s); if (t) return t; } return null; }
 
-  function signIn(clientId, slot) {
+  function signIn(clientId, slot, hint) {
     if (!clientId) return Promise.reject(err('no_client', 'Falta el ID de cliente de Google. Ponlo en Ajustes → Conexión con YouTube.'));
     return loadGIS().then(() => new Promise((resolve, reject) => {
       let client;
@@ -48,6 +48,7 @@
           client_id: clientId.trim(),
           scope: SCOPES,
           prompt: 'select_account',
+          hint: hint || undefined,
           callback: r => {
             if (r.error) return reject(err(r.error, r.error_description || 'Google no ha dado permiso.'));
             if (!google.accounts.oauth2.hasGrantedAllScopes(r, ...SCOPES.split(' '))) {

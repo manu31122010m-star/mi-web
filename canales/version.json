@@ -1,10 +1,17 @@
 {
-  "version": "1.0.4",
+  "version": "1.0.5",
   "date": "2026-11-16",
   "notes": [
-    "Las fotos de los canales se ven pequeñas y el diseño se actualiza siempre"
+    "Cada canal puede entrar con su propia cuenta de Google"
   ],
   "history": [
+    {
+      "version": "1.0.5",
+      "date": "2026-11-16",
+      "notes": [
+        "Cada canal puede entrar con su propia cuenta de Google"
+      ]
+    },
     {
       "version": "1.0.4",
       "date": "2026-11-16",
