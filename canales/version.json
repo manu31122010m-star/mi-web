@@ -1,10 +1,17 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "date": "2026-11-16",
   "notes": [
-    "Tus 3 canales aparecen ya en la app con sus datos públicos, sin iniciar sesión"
+    "Corregido el tamaño de las fotos de los canales en Ajustes"
   ],
   "history": [
+    {
+      "version": "1.0.3",
+      "date": "2026-11-16",
+      "notes": [
+        "Corregido el tamaño de las fotos de los canales en Ajustes"
+      ]
+    },
     {
       "version": "1.0.2",
       "date": "2026-11-16",
